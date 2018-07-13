@@ -25,43 +25,47 @@ Nessa etapa, iremos carregar os pacotes utilizadas em todo o Web Scraping, bem c
 
 # Carregar pacotes utilizados no Web Scraping
 
-#Pacotes que serão usados no processo de Web Scraping
-library(httr)
-library(rvest)
-library(xml2)
-library(XML)
+# Pacote de Documentação do Web Scraping
+if(require(rmarkdown) == FALSE) { install.packages("rmarkdown")}
 
-#Pacote que será usado como ´timer´ para disparara a execução do Scraping em determinado dia e hora
-# library(cronr) - esse pacote ainda não está disponível para a a versão 3.5 do R
+#bPacotes que serão usados no processo de Web Scraping
+if(require(httr) == FALSE) {install.packages("httr")}
+if(require(rvest) == FALSE) {install.packages("rvest")}
+if(require(xml2) == FALSE) {install.packages("xml2")}
+if(require(XML) == FALSE) {install.packages("XML")}
 
-#Pacotes que serão usados na criação das tabela (data frames) e no durante o processo de tramento de dados (Data Wrangling)
-library(tibble)
-library(readr)
-library(dplyr)
-library(stringr)
-library(lubridate)
-library(abjutils)
-library(tidyr)
-library(janitor)
+# Pacote que será usado como ´timer´ para disparara a execução do Scraping em determinado dia e hora
+#if(require(cronr) == FALSE) {install.packages("cronr")} - esse pacote ainda não está disponível para a a versão 3.5 do R
+
+# Pacotes que serão usados na criação das tabela (data frames) e no durante o processo de tramento de dados (Data Wrangling)
+if(require(tibble) == FALSE) { install.packages("tibble")}
+if(require(readr) == FALSE) { install.packages("readr")}
+if(require(dplyr) == FALSE) { install.packages("dplyr")}
+if(require(stringr) == FALSE) { install.packages("stringr")}
+if(require(lubridate) == FALSE) { install.packages("lubridate")}
+if(require(abjutils) == FALSE) { install.packages("abjutils")}
+if(require(tidyr) == FALSE) { install.packages("tidyr")}
+if(require(janitor) == FALSE) { install.packages("janitor")}
 
 
-#Pacotes que serão usados iterar (realizar os loops) das funções e paralelizar a execução do código
-library(purrr)
-library(furrr)
+# Pacotes que serão usados iterar (realizar os loops) das funções e paralelizar a execução do código
+if(require(purrr) == FALSE) { install.packages("purrr")}
+if(require(furrr) == FALSE) { install.packages("furrr")}
 
-#Pacotes que serão usados para comunir com o Banco de Dados
-library(DBI)
-library(RSQLite)
+# Pacotes que serão usados para comunir com o Banco de Dados
+if(require(DBI) == FALSE) { install.packages("DBI")}
+if(require(RSQLite) == FALSE) { install.packages("RSQLite")}
 
-#Pacotes que gera código Hash dos arquivos HTML baixados
-library(git2r)
+# Pacotes que gera código Hash dos arquivos HTML baixados
+if(require(git2r) == FALSE) { install.packages("git2r")}
 
-#Pacote que será usado para disponibilizar os dados via API Rest 
-#library(plumber)
+# Pacote que será usado para disponibilizar os dados via API Rest 
+#if(require(plumber) == FALSE) { install.packages("plumber")}
 
-#Pacotes que serão usados para construir, via Dockerfile, a arquitetura para execução do Web Scraping em "nuvem
-library(packrat)
-#library(containerit) - esse pacote ainda não está disponível para a a versão 3.5 do R
+# Pacotes que serão usados para construir, via Dockerfile, a arquitetura para execução do Web Scraping em "nuvem
+if(require(packrat) == FALSE) { install.packages("packrat")}
+#if(require(containerit) == FALSE) { install.packages("containerit")} - esse pacote ainda não está disponível para a a versão 3.5 do R
+
 
 ```
 
@@ -115,6 +119,16 @@ print("As pastas foram criadas com sucesso no diretório")
 log_data_hora <- function () {
 
 format(lubridate::now(), tz ="Brazil/East", usetz = TRUE)
+
+}
+
+###################################################################
+
+valor_monetario <- function (x) {
+  
+     readr::parse_number(x, 
+                         locale = locale(grouping_mark = ".",
+                                         decimal_mark = ","))
 
 }
 
@@ -283,7 +297,7 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
                                                     tipo_de_empenho TEXT NOT NULL,
                                                     favorecido TEXT NOT NULL,
                                                     valor_do_empenho TEXT NOT NULL,
-                                                    valor_das_rentecoes TEXT NOT NULL,
+                                                    valor_das_retencoes TEXT NOT NULL,
                                                     restos_a_pagar TEXT NOT NULL,
                                                     conta_bancaria TEXT NOT NULL,
                                                     fonte_de_recurso_tcm TEXT NOT NULL,
@@ -790,7 +804,6 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
                                   log_request_html_pag = log_request_html_pag,
                                   nm_arq_html_pag = nm_arq_html_pag,
                                   arq_html_pag_tratado = "S",
-          #!!!!!Verificar se essa inclisão causará erro
                                   hash_arq_html_pag = hash_arq_html_pag,
                                   log_tratamento_arq_html_pag = log_parser,
                                   documento = doc_arq_html_pag,
@@ -995,7 +1008,7 @@ tb_gastos_municipais <- tibble::tibble(
                                       tipo_de_empenho = pegar_dados_html[7],
                                       favorecido = pegar_dados_html[8],
                                       valor_do_empenho = pegar_dados_html[9],
-                                      valor_das_rentecoes = pegar_dados_html[10],
+                                      valor_das_retencoes = pegar_dados_html[10],
                                       restos_a_pagar = pegar_dados_html[11],
                                       conta_bancaria = pegar_dados_html[12],
                                       fonte_de_recurso_tcm = pegar_dados_html[13],
@@ -1056,7 +1069,7 @@ return(print(paste("Tratado:", nm_arq_html_despesa, "-", pagina, "-", nm_entidad
 
 #Pré-Processamento dos Dados
 
-tidy_data <- function() {
+executar_tidy_data <- function() {
 
   # Cria a conexão com o SGBD.
   conect_bd <- conexao_sgbd()
@@ -1066,7 +1079,6 @@ tidy_data <- function() {
   
   tb_gastos_municipios <- DBI::dbReadTable(conect_bd, "tabela_gastos_municipios") %>%
                           tibble::as.tibble() %>%
-                          #purrr::map_df(abjutils::rm_accent) %>%
                           tidyr::separate(col = favorecido,
                                           into = c("cod_favorecido",
                                                    "nm_favorecido"),
@@ -1137,17 +1149,17 @@ tidy_data <- function() {
                                                    "nm_fonte_de_recurso_gestor_2"),
                                           sep = " - ",
                                           remove = TRUE, extra = "merge") %>%
-
+                          dplyr::mutate(valor_do_pagamento = valor_monetario(valor_do_pagamento)) %>%
+                          dplyr::mutate(valor_do_empenho = valor_monetario(valor_do_empenho)) %>%
+                          #dplyr::mutate_if(valor_das_retencoes = "-", 0)
+                          dplyr::mutate(valor_das_retencoes = valor_monetario(valor_das_retencoes)) %>%
+                          #purrr::map_df(abjutils::rm_accent) %>%
                           purrr::map_dfr(stringr::str_to_upper) %>%
-                          # purrr::map_dfr(readr::parse_number(locale = locale(grouping_mark = ".", decimal_mark = ","))) %>%
-                          # .$valor_do_empenho
-                          # .$valor_do_pagamento
-                          # .$valor_das_rentecoes
                           purrr::map_dfr(stringr::str_trim)
 
-DBI::dbWriteTable(conect_bd, "tabela_gastos_municipais_processado", tb_gastos_municipios, overwrite = TRUE)
+DBI::dbWriteTable(conect_bd, "tabela_gastos_municipais_arrumados", tb_gastos_municipios, overwrite = TRUE)
   
-readr::write_csv(tb_gastos_municipios, file.path("bd_sqlite", "tabela_gastos_municipais_processado.csv"))
+readr::write_csv(tb_gastos_municipios, file.path("bd_sqlite", "tabela_gastos_municipais_arrumados.csv"))
   
 }
 
@@ -1199,14 +1211,7 @@ cod_municipios <- c(2927408)
 # Função que cria as pastas dos arquivos
 criar_pastas()
 
-# Função que cria o formato do log (tempo de execução das funções para registro no BD)
-log_data_hora()
-
-# Função que cria o SQLite e a respectiva conexão.
-conexao_sgbd()
-
-# Função que cria 4 das 5 tabelas que serão armazenadas no SQLite. A 5ª será criada em tempo de execução
-# para registrar log, se for necessário
+# Função que cria 4 tabelas que serão armazenadas no SQLite.
 criar_tabelas_bd()
 
 # Função que cria a tabela dCalendario
@@ -1229,15 +1234,30 @@ executar_scraping_html_despesas()
 # Função que faz o parser dos HTMLs das depesas e o Data Wrangling dos HTMLs
 executar_data_wrangling_html_despeas()
 
-# Função faz o pré-processamento dos dados do HTML, aplicando o conceito Tidy Data de Hadley Wickham (http://r4ds.had.co.nz/tidy-data.html) . Com isso, os dados são facilmente analisados em software de
-# Business Intelligence ou de estatística como o próprio R.
+# Função que faz o pré-processamento dos dados obtidos do HTML, aplicando o conceito Tidy Data 
+executar_tidy_data()
+
+# O conceito Tidy Data de Hadley Wickham tem por objetivo arrumar os dados
+# para que eles sejam utilizados em softwares de estatísticas ou
+# de Business Intelligence sem a necessidade de realizar
+# mais transformações nos dados.
+
+# O Conceito está resumido nestas três regras:
 # - Cada variável deve ter sua própria coluna.
 # - Cada observação deve ter sua própria linha.
 # - Cada valor deve ter sua própria célula.
-tidy_data()
+
+#(http://r4ds.had.co.nz/tidy-data.html)
 
 ```
 
+
+
+
+
+
+
+```{r }
 
 ######################################################################################
 
@@ -1247,22 +1267,64 @@ tidy_data()
 #    Verificar se a duplicidade de dados deve ser abordada no Scraping ou na etapa de Pré-Processamento
 
 # MELHORIAS
-#!!! Colcoar a função 'scraping_html_purrr' no padrão da Programação Funcional
+#!!! Colocar a função 'scraping_html_purrr' no padrão da Programação Funcional
 #!!! Aperfeiçoar o código e a lógica da função 'scraping_num_pags'
+#!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária)
 #!!! Verificar a possibilidade de excluir o pacote 'janitor' e 'XML'
 #!!! Verificar se é possível reduzir o uso de conexão ao BD nas funções, ou usar melhor a conexão com o BD
 #!!! Verificar e corrigir o aumento progressivo da memória RAM durante o Web Scraping
 #!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`
 
+
 # IMPLEMENTAÇÕES
-#!!! Desenvolver Função de pré-processamento
-#!!! Desenvolver tabela para resgistrar todos os timeout ou erros de requisição
 #!!! Estruturar todo o código para execução em cadeia
+#!!! Transformar os valor "-" na coluna `valor_das_retencoes` em 0
 #!!! Desenvolver Função de backup do BD
 #!!! Desenvolver o Packrat do Web Scraping
 #!!! Implantar o Docker do Rstudio com o Packrat do Web Scraping
 #!!! Finalizar o Código para que se torne automatizado com o CronR/CronTab
 #!!! Desenvolver um API com o pacote 'Plumber'
-#!!! Docuumentar toda o código
+#!!! Documentar todo o código
 #!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
+
+
+#Prioridades
+#!!! Configurar o Git no RStudio
+#!!! Evitar duplicidade de entidades alvos, ao incluir entidades municipais novas e que já existiam na base de dados, considerando o ano correspondente
+#!!! Evitar duplicidade de dados na hora de raspar os HTMLs das páginas das entidades.
+#    Verificar se a duplicidade de dados deve ser abordada no Scraping ou na etapa de Pré-Processamento
+#!!! Aperfeiçoar a função `valor_monetario()` para não tranformar os valor "-" em NA.
+#!!! Docker do RStudio no Digital Ocean
+#!!! Transformar os valor "-" na coluna `valor_das_retencoes` em 0
+#!!! Documentar todo o código
+
+
+
+item <- c("a", "b", "c", "d", "e")
+valor <- c("R$86.098,02", "-", "R$ 589.256,36", "-", "-")
+
+tab <- tibble(item = item,
+              valor = valor)
+
+valor_monetario <- function (x) {
+  
+     readr::parse_number(x,
+                         locale = locale(grouping_mark = ".",
+                                         decimal_mark = ","))
+
+}
+
+
+tab2 <- tab %>% mutate_if(valor = "-", 0)
+str(tab2)
+
+
+
+
+
+```
+
+
+
+
 
