@@ -525,7 +525,6 @@ executar_scraping_num_pags <- function(ano_exercicio, cod_municipios_alvo) {
   # Cria a conexão com o SGBD;
   conect_bd <- conexao_sgbd()
   
-  #!!! Corrigir este bug
   criar_tb_dcalendario (ano_exercicio)
   
   tb_tcm_dmunicipios_alvos <- DBI::dbReadTable(conect_bd, "tabela_tcm_dmunicipios_entidades", check.names = FALSE) %>%
@@ -651,7 +650,7 @@ DBI::dbWriteTable(conect_bd, "tabela_paginas_links", tb_paginas_links, append = 
 
 DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas 
                            SET pagina = :pagina
-                           WHERE id = :id;',
+                           WHERE id = :id',
                params = list(pagina = as.character(pagina),
                              id = as.character(id)))
   
@@ -664,7 +663,7 @@ DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas
 
 ######################################################################################
 
-iniciar <- function(ano, cod_municipios) {
+criar_tb_entidades_alvo <- function(ano, cod_municipios) {
 
 criar_pastas()
 
@@ -1057,7 +1056,7 @@ return(print(paste("Tratado:", nm_arq_html_despesa, "-", pagina, "-", nm_entidad
 
 #Pré-Processamento dos Dados
 
-pre_processamento <- function() {
+tidy_data <- function() {
 
   # Cria a conexão com o SGBD.
   conect_bd <- conexao_sgbd()
@@ -1185,40 +1184,62 @@ conect_bd <- conexao_sgbd()
 
 ```{r executar}
 
+
+# Variável que define a partir de que ano os dados serão raspados.
+ano <- c("2018") 
+
+# Variável que define os municípios (e respectios entes municipais) serão raspados.
+# Web Scraping das entidades municipais somente do Município de Salvador (Prefeitura, Câmara e Adm. Indireta)
+cod_municipios <- c(2927408)
+
+# Web Scraping das entidades municipais dos Municípios de:
+# Santo Antõnio de Jesus, Santo Amaro, Nazaré, Porto Seguro, Ilhéus, Barreiras, São Francisco do Conde e Salvador
+# cod_municipios <- c(2928703, 2928604, 2922508, 2925303, 2913606, 2903201, 2929206, 2927408)
+
+# Função que cria as pastas dos arquivos
+criar_pastas()
+
+# Função que cria o formato do log (tempo de execução das funções para registro no BD)
+log_data_hora()
+
+# Função que cria o SQLite e a respectiva conexão.
+conexao_sgbd()
+
+# Função que cria 4 das 5 tabelas que serão armazenadas no SQLite. A 5ª será criada em tempo de execução
+# para registrar log, se for necessário
+criar_tabelas_bd()
+
+# Função que cria a tabela dCalendario
+criar_tb_dcalendario(ano)
+
+# Função que faz o Web Scraping do código e nome dos Municípios
+criar_tb_dmunicipios()
+
+# Função que faz o Web Scraping (via Web Service) do código e nome das Entidades.
+criar_tb_dmunicipios_entidades()
+
+# Função que cria a tabela das entidades alvos e faz o Web Scraping das páginas
+# que têm os links que derão acesso as páginas HTML que contêm os dados sobre as despesas
+criar_tb_entidades_alvo(ano, cod_municipios)
+
+# Função cria a tabela de requisições e faz o Web Scraping das páginas HTML que contêm
+# os dados das despesas
 executar_scraping_html_despesas()
 
-######################################################################################
-
-
+# Função que faz o parser dos HTMLs das depesas e o Data Wrangling dos HTMLs
 executar_data_wrangling_html_despeas()
 
+# Função faz o pré-processamento dos dados do HTML, aplicando o conceito Tidy Data de Hadley Wickham (http://r4ds.had.co.nz/tidy-data.html) . Com isso, os dados são facilmente analisados em software de
+# Business Intelligence ou de estatística como o próprio R.
+# - Cada variável deve ter sua própria coluna.
+# - Cada observação deve ter sua própria linha.
+# - Cada valor deve ter sua própria célula.
+tidy_data()
 
-######################################################################################
-
-
-pre_processamento()
-
-######################################################################################
-
-ano <- c(2018) 
-
-cod_municipios <- c(2903201)
-
-# iniciar(ano, cod_municipios)
+```
 
 
 ######################################################################################
-
-criar_pastas()
-log_data_hora()
-conexao_sgbd()
-criar_tabelas_bd()
-criar_tb_dcalendario(ano)
-criar_tb_dmunicipios()
-criar_tb_dmunicipios_entidades()
-criar_tb_entidades_alvos(ano, cod_municipios)
-executar_scraping_num_pags()
-iniciar()
 
 # BUGs
 #!!! Evitar duplicidade de entidades alvos, ao incluir entidades municipais novas e que já existiam na base de dados, considerando o ano correspondente
@@ -1227,7 +1248,6 @@ iniciar()
 
 # MELHORIAS
 #!!! Colcoar a função 'scraping_html_purrr' no padrão da Programação Funcional
-#!!! Renomear função 'executar_scraping_num_pags' e 'iniciar'
 #!!! Aperfeiçoar o código e a lógica da função 'scraping_num_pags'
 #!!! Verificar a possibilidade de excluir o pacote 'janitor' e 'XML'
 #!!! Verificar se é possível reduzir o uso de conexão ao BD nas funções, ou usar melhor a conexão com o BD
@@ -1246,12 +1266,3 @@ iniciar()
 #!!! Docuumentar toda o código
 #!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
 
-        
-        
-        t1 <- c(2928703, 2922508, 2925303)
-        t2 <- c(2928703, 2922508, 2925303, 2913606, 2903201, 2927408)
-        t3 <- t2[t2 != t1]
-        
-   
-
-```
