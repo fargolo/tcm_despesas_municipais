@@ -650,7 +650,7 @@ DBI::dbWriteTable(conect_bd, "tabela_paginas_links", tb_paginas_links, append = 
   
 
 DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas 
-                           SET pagina = :pagina,
+                           SET pagina = :pagina
                            WHERE id = :id;',
                params = list(pagina = as.character(pagina),
                              id = as.character(id)))
