@@ -330,7 +330,8 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
   
 }
 
-  
+  DBI::dbDisconnect(conect_bd)
+
 }
 
 
@@ -363,6 +364,8 @@ DBI::dbWriteTable(conect_bd, "tabela_dcalendario", tb_dcalendario, overwrite = T
 
 print("A tabela `tabela_dcalendario` foi criada com sucesso no BD")
 
+DBI::dbDisconnect(conect_bd)
+
 }
 
 ```
@@ -374,9 +377,6 @@ print("A tabela `tabela_dcalendario` foi criada com sucesso no BD")
 
 
 scraping_tcm_municipios <- function() {
-
-# Cria a conexão com o SGBD;
-conect_bd <- conexao_sgbd()
 
 # Scraping do código e nome dos municípios, e por meio do qual será feio o scraping
 url_tcm <- url_tcm()
@@ -403,6 +403,7 @@ tabela_tcm_dmunicipios <- tibble::tibble(cod_municipio = cod_municipio,
 
 return(tabela_tcm_dmunicipios)
 
+
 }
 
 ######################################################################################
@@ -420,6 +421,8 @@ tabela_tcm_dmunicipios <- scraping_tcm_municipios()
 DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios", tabela_tcm_dmunicipios, overwrite = TRUE)
 
 print("A tabela `tabela_tcm_dmunicipios` foi criado com sucesso no BD")
+
+DBI::dbDisconnect(conect_bd)
 
 }
 
@@ -465,6 +468,8 @@ progresso <- paste("Scraping:", tratar_resultado$cod_municipio, "-", tratar_resu
                    "-", tratar_resultado$cod_entidade, "-", tratar_resultado$nm_entidade) %>%
              print()
 
+DBI::dbDisconnect(conect_bd)
+
 # Função return() para que o output seja o dataframe que está na variável 'tratar_resultado';
 return(tratar_resultado)
 
@@ -490,6 +495,8 @@ scraping_mun_ent <- purrr::pwalk(cod_nm_mun, scraping_tcm_entidades_ws)
 
 
 print("A tabela `tabela_tcm_dmunicipios_entidades` foi criado com sucesso no BD")
+
+DBI::dbDisconnect(conect_bd)
 
 }
 
@@ -621,6 +628,9 @@ DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas
 
   
 }
+  
+DBI::dbDisconnect(conect_bd)
+    
 }
 
 
@@ -666,6 +676,7 @@ entidades_alvos <- DBI::dbReadTable(conect_bd, "tabela_entidades_alvos_paginas")
 
 purrr::pwalk(entidades_alvos, scraping_num_pags)
 
+DBI::dbDisconnect(conect_bd)
 
 }
 
@@ -691,6 +702,8 @@ executar_scraping_html_despesas <- function() {
   purrr::pwalk(tb_requisicoes, scraping_html_despesas)
   
   print("Web Scraping dos arquivos HTML das Despesas foi concluído")
+  
+  DBI::dbDisconnect(conect_bd)
 
 }
 
@@ -709,6 +722,8 @@ criar_tb_requisicoes_despesas <- function() {
   purrr::pwalk(tab_html_num_pags, parser_arq_html_pags)
   
   print("Tabela de requisições criada com sucesso")
+  
+  DBI::dbDisconnect(conect_bd)
 
 }
 
@@ -797,6 +812,8 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
                                pagina = as.character(pagina)))
   
   print(paste0("Parser:", pagina, " - ", nm_arq_html_pag, " - ", nm_entidade))
+  
+  DBI::dbDisconnect(conect_bd)
   
 
 }
@@ -917,18 +934,18 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
     
 
     
-  # Grava "S" na tabela 'tabela_paginas_links' para controlar os arquivos HTML já tratados 
-   DBI::dbExecute(conect_bd, 'UPDATE tabela_requisicoes 
-                              SET arq_html_pag_tratado = "S",
-                                  status_request_html_despesa = "S",
-                                  nm_arq_html_despesa = :nome_arquivo_html,
-                                  log_request_html_despesa = :log_request,
-                                  hash_arq_html_despesa = :hash_arq_html_despesa
-                              WHERE id = :id;',
-                  params = list(nome_arquivo_html = as.character(nome_arquivo_html),
-                                log_request = as.character(log_request),
-                                hash_arq_html_despesa = as.character(hash_arq_html_despesa),
-                                id = as.character(id)))
+    # Grava "S" na tabela 'tabela_paginas_links' para controlar os arquivos HTML já tratados 
+    DBI::dbExecute(conect_bd, 'UPDATE tabela_requisicoes 
+                               SET arq_html_pag_tratado = "S",
+                                   status_request_html_despesa = "S",
+                                   nm_arq_html_despesa = :nome_arquivo_html,
+                                   log_request_html_despesa = :log_request,
+                                   hash_arq_html_despesa = :hash_arq_html_despesa
+                               WHERE id = :id;',
+                   params = list(nome_arquivo_html = as.character(nome_arquivo_html),
+                                 log_request = as.character(log_request),
+                                 hash_arq_html_despesa = as.character(hash_arq_html_despesa),
+                                 id = as.character(id)))
     
 
     print(paste0("Scraping - ", "Doc: ",documento, " - Pág: ", pagina,
@@ -936,6 +953,8 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
 
 }
 
+    DBI::dbDisconnect(conect_bd)
+    
 }
 
 ```
@@ -943,7 +962,7 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
 
 10 - Função que faz o parser e o Data Munging dos arquivos HMTL que contêm os Extatos das Despesas
 
-```{r data_wrangling_html_despeas}
+```{r data_wrangling_html_despesas}
 
 data_wrangling_html <- function(id, ano, cod_municipio, nm_municipio,
                                 cod_entidade, nm_entidade, pagina,
@@ -1031,6 +1050,8 @@ DBI::dbExecute(conect_bd, 'UPDATE tabela_requisicoes
                              id = as.character(id)))
 
 return(print(paste("Tratado:", nm_arq_html_despesa, "-", pagina, "-", nm_entidade)))
+
+DBI::dbDisconnect(conect_bd)
 
 
 }
@@ -1132,6 +1153,8 @@ DBI::dbWriteTable(conect_bd, "tabela_gastos_municipais_arrumados", tb_gastos_mun
   
 readr::write_delim(tb_gastos_municipios, file.path("bd_sqlite", "tabela_gastos_municipais_arrumados.csv"),
                    delim = ";")
+
+DBI::dbDisconnect(conect_bd)
   
 }
 
@@ -1159,6 +1182,8 @@ conect_bd <- conexao_sgbd()
 
 }
 
+  DBI::dbDisconnect(conect_bd)
+  
 }
 ```
 
@@ -1166,7 +1191,7 @@ conect_bd <- conexao_sgbd()
 
 
 
-```{r executar}
+```{r executar, eval=FALSE, include=FALSE}
 
 
 # Variável que define a partir de que ano os dados serão raspados.
@@ -1228,7 +1253,7 @@ executar_tidy_data()
 
 
 
-```{r }
+```{r eval=FALSE, include=FALSE}
 
 ######################################################################################
 
@@ -1239,8 +1264,7 @@ executar_tidy_data()
 
 # MELHORIAS
 #!!! Aperfeiçoar o código e a lógica da função 'scraping_num_pags'
-#!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária)
-#!!! Verificar se é possível reduzir o uso de conexão ao BD nas funções, ou usar melhor a conexão com o BD
+#!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária???)
 #!!! Verificar e corrigir o aumento progressivo da memória RAM durante o Web Scraping
 #!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`
 
@@ -1250,7 +1274,6 @@ executar_tidy_data()
 #    bem como gravar logs
 #!!! Implementar uma função para identificar HTML com problemas/homissões no seu conteúdo devido a problemas
 #    no servidor do TCM ao responder as requisições
-#!!! Estruturar todo o código para execução em cadeia
 #!!! Desenvolver Função de backup do BD
 #!!! Desenvolver o Packrat do Web Scraping
 #!!! Implantar o Docker do Rstudio com o Packrat do Web Scraping
@@ -1261,15 +1284,12 @@ executar_tidy_data()
 
 
 #Prioridades
-#!!! Configurar o Git no RStudio
 #!!! Evitar duplicidade de dados na hora de raspar os HTMLs das páginas das entidades.
 #    Verificar se a duplicidade de dados deve ser abordada no Scraping ou na etapa do Parser
 #!!! Docker do RStudio no Digital Ocean
 #!!! Documentar todo o código
 
 ######################################################################################
-
-
 
 ```
 
