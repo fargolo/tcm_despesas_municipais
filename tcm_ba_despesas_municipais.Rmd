@@ -1,0 +1,1275 @@
+---
+title: "Web Scraping - Gastos Públicos dos Municípios do Estado da Bahia"
+author: "George Santiago"
+date: "24 de junho de 2018"
+output: html_document
+---
+
+# Sobre a proposta e objetivo do Web Scraping
+
+O presente Web Scraping tem o objetivo de obter os dados .
+
+## Sobre o Código do Web Scraping em Linguagem R
+
+## Etapas e Estratégias do Web Scraping
+
+## Estrutura do Código em Linguagem R do Web Scraping
+
+### Código do Web Scraping em Linguagem R 
+1.1 - Carregar os pacotes utilizados no script
+
+Nessa etapa, iremos carregar os pacotes utilizadas em todo o Web Scraping, bem como definir o diretório de trabalho, que é de fundamental importância na etapa de criação das pastas para armazenamento dos dados obtidos. Se os pacotes não estivem instalados na máquina, será necessário utilizar o comando *install.packages("nome_do_pacote")* para que consiga ser carregado com na função *library()*
+
+
+```{r setup, include=FALSE}
+
+# Carregar pacotes utilizados no Web Scraping
+
+# Pacote de Documentação do Web Scraping
+if(require(rmarkdown) == FALSE) { install.packages("rmarkdown")}
+
+#bPacotes que serão usados no processo de Web Scraping
+if(require(httr) == FALSE) {install.packages("httr")}
+if(require(rvest) == FALSE) {install.packages("rvest")}
+if(require(xml2) == FALSE) {install.packages("xml2")}
+
+# Pacote que será usado como ´timer´ para disparara a execução do Scraping em determinado dia e hora
+#if(require(cronr) == FALSE) {install.packages("cronr")} - esse pacote ainda não está disponível para a a versão 3.5 do R
+
+# Pacotes que serão usados na criação das tabela (data frames) e no durante o processo de tramento de dados (Data Wrangling)
+if(require(tibble) == FALSE) { install.packages("tibble")}
+if(require(readr) == FALSE) { install.packages("readr")}
+if(require(dplyr) == FALSE) { install.packages("dplyr")}
+if(require(tidyr) == FALSE) { install.packages("tidyr")}
+if(require(stringr) == FALSE) { install.packages("stringr")}
+if(require(stringi) == FALSE) { install.packages("stringi")}
+if(require(lubridate) == FALSE) { install.packages("lubridate")}
+
+# Pacotes que serão usados iterar (realizar os loops) das funções e paralelizar a execução do código
+if(require(purrr) == FALSE) { install.packages("purrr")}
+if(require(furrr) == FALSE) { install.packages("furrr")}
+
+# Pacotes que serão usados para comunir com o Banco de Dados
+if(require(DBI) == FALSE) { install.packages("DBI")}
+if(require(RSQLite) == FALSE) { install.packages("RSQLite")}
+
+# Pacotes que gera código Hash dos arquivos HTML baixados
+if(require(git2r) == FALSE) { install.packages("git2r")}
+
+# Pacote que será usado para disponibilizar os dados via API Rest 
+#if(require(plumber) == FALSE) { install.packages("plumber")}
+
+# Pacotes que serão usados para construir, via Dockerfile, a arquitetura para execução do Web Scraping em "nuvem
+if(require(packrat) == FALSE) { install.packages("packrat")}
+#if(require(containerit) == FALSE) { install.packages("containerit")} - esse pacote ainda não está disponível para a a versão 3.5 do R
+
+
+```
+
+
+1 - Criar o conjunto de pasta de trabalho (diretório)
+
+```{r criar_diretorios}
+
+criar_pastas <- function() {
+
+# Cria as pastas dos diretórios que serão utilizados;  
+
+dir_principal <- getwd()
+
+subdir_bd_sqlite <- file.path(dir_principal, "bd_sqlite")
+subdir_resposta_scraping_html <- file.path(dir_principal, "resposta_scraping_html")
+subdir_resposta_scraping_links <- file.path(dir_principal, "resposta_scraping_links")
+
+if (dir.exists(dir_principal) == FALSE) {
+    dir.create(dir_principal)
+}
+
+
+if (dir.exists(subdir_bd_sqlite) == FALSE) {
+    dir.create(subdir_bd_sqlite)
+}
+
+if (dir.exists(subdir_resposta_scraping_html) == FALSE) {
+    dir.create(subdir_resposta_scraping_html)
+}
+
+if (dir.exists(subdir_resposta_scraping_links) == FALSE) {
+    dir.create(subdir_resposta_scraping_links)
+}
+
+
+print("As pastas foram criadas com sucesso no diretório")
+
+
+}
+
+```
+
+2 - Função que cria a data e hora local, com timezone do Brasil
+
+```{r parametros}
+
+# Função que cria a data e hora local, com timezone do Brasil
+# Essa função foi desenvolvida para colocar a informação no formato DATE em formato 'character' no SQLite,
+# visto que o SQLite converte data em número.
+log_data_hora <- function () {
+
+format(lubridate::now(), tz ="Brazil/East", usetz = TRUE)
+
+}
+
+###################################################################
+
+valor_monetario <- function (x) {
+  
+     readr::parse_number(x, 
+                         locale = locale(grouping_mark = ".",
+                                         decimal_mark = ","))
+
+}
+
+###################################################################
+
+url_tcm <- function () {
+  
+url_tcm <-  "http://www.tcm.ba.gov.br/consulta-de-despesas/"
+  
+}
+
+###################################################################
+
+url_tcm_entidades_ws <- function(){
+
+url_tcm_entidades_ws <- "http://www.tcm.ba.gov.br/Webservice/index.php/entidades?cdMunicipio="
+
+}
+
+```
+
+
+3 - Função que estabelece a Conexão com o SGBD
+
+```{r conect_sgbd}
+conexao_sgbd <- function() {
+
+# Verifica se o diretório onde ficará o arquivo do SQLite está criado;
+if (dir.exists("bd_sqlite") == FALSE) { criar_pastas() }
+
+# Cria a conexão com o SQLite, assim como o arquivo 'bd_tcm_gastos_municipais.db', caso ele não exista;
+drive <- DBI::dbDriver("SQLite")
+sqlite_bd <- DBI::dbConnect(drive, dbname = file.path("bd_sqlite", "bd_tcm_gastos_municipais.db"))
+
+print("Conexão com o SQL efetuada com sucesso")
+
+return(sqlite_bd)
+
+}
+
+######################################################################################
+
+criar_tabelas_bd <- function() {
+  
+conect_bd <- conexao_sgbd()
+
+
+if (DBI::dbExistsTable(conect_bd, "tabela_dcalendario") == FALSE) {
+
+    DBI::dbExecute(conect_bd, "CREATE TABLE tabela_dcalendario (
+                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    data TEXT NOT NULL,
+                                                    ano TEXT NOT NULL,
+                                                    mes TEXT NOT NULL
+                                                   );"
+                                                   )
+}
+
+
+
+if (DBI::dbExistsTable(conect_bd, "tabela_tcm_dmunicipios") == FALSE) {
+
+    DBI::dbExecute(conect_bd, "CREATE TABLE tabela_tcm_dmunicipios (
+                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    cod_municipio INT NOT NULL,
+                                                    nm_municipio TEXT NOT NULL,
+                                                    log_create TEXT NOT NULL
+                                                   );"
+                                                   )
+}
+
+
+if (DBI::dbExistsTable(conect_bd, "tabela_tcm_dmunicipios_entidades") == FALSE) {
+
+    DBI::dbExecute(conect_bd, "CREATE TABLE tabela_tcm_dmunicipios_entidades (
+                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    cod_municipio INT NOT NULL,
+                                                    nm_municipio TEXT NOT NULL,
+                                                    cod_entidade INT NOT NULL,
+                                                    nm_entidade TEXT NOT NULL,
+                                                    log_create TEXT NOT NULL
+                                                   );"
+                                                   )
+}
+
+
+
+if (DBI::dbExistsTable(conect_bd, "tabela_entidades_alvos_paginas") == FALSE) {
+
+    DBI::dbExecute(conect_bd, "CREATE TABLE tabela_entidades_alvos_paginas (
+                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    ano TEXT NOT NULL,
+                                                    cod_municipio INT NOT NULL,
+                                                    nm_municipio TEXT NOT NULL,
+                                                    cod_entidade INT NOT NULL,
+                                                    nm_entidade TEXT NOT NULL,
+                                                    pagina INT NOT NULL
+                                                   );"
+                                                   )
+}
+
+
+if (DBI::dbExistsTable(conect_bd, "tabela_paginas_links") == FALSE) {
+
+    DBI::dbExecute(conect_bd, "CREATE TABLE tabela_paginas_links (
+                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    ano TEXT NOT NULL,
+                                                    cod_municipio INT NOT NULL,
+                                                    nm_municipio TEXT NOT NULL,
+                                                    cod_entidade INT NOT NULL,
+                                                    nm_entidade TEXT NOT NULL,
+                                                    pagina INT NOT NULL,
+                                                    status_request_html_pag TEXT NOT NULL,
+                                                    log_request_html_pag TEXT NOT NULL,
+                                                    nm_arq_html_pag TEXT NOT NULL,
+                                                    arq_html_pag_tratado TEXT NOT NULL,
+                                                    hash_arq_html_pag TEXT NOT NULL,
+                                                    log_tratamento_arq_html_pag TEXT NOT NULL
+                                                   );"
+                                                   )
+
+}
+  
+if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
+
+    DBI::dbExecute(conect_bd, "CREATE TABLE tabela_requisicoes (
+                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    ano TEXT NOT NULL,
+                                                    cod_municipio INT NOT NULL,
+                                                    nm_municipio TEXT NOT NULL,
+                                                    cod_entidade INT NOT NULL,
+                                                    nm_entidade TEXT NOT NULL,
+                                                    pagina INT NOT NULL,
+                                                    status_request_html_pag TEXT NOT NULL,
+                                                    log_request_html_pag TEXT NOT NULL,
+                                                    nm_arq_html_pag TEXT NOT NULL,
+                                                    arq_html_pag_tratado TEXT NOT NULL,
+                                                    hash_arq_html_pag TEXT NOT NULL,
+                                                    log_tratamento_arq_html_pag TEXT NOT NULL,
+                                                    documento TEXT NOT NULL,
+                                                    empenho TEXT NOT NULL,
+                                                    valor_documento TEXT NOT NULL,
+                                                    link_despesa TEXT NOT NULL,
+                                                    nm_arq_html_despesa TEXT NOT NULL,
+                                                    status_request_html_despesa TEXT NOT NULL,
+                                                    log_request_html_despesa TEXT NOT NULL,
+                                                    arq_html_despesa_tratado TEXT NOT NULL,
+                                                    hash_arq_html_despesa TEXT NOT NULL,
+                                                    log_tratamento_arq_html_despesa TEXT NOT NULL
+                                                    );"
+                                                    )
+  
+}
+
+
+ if (DBI::dbExistsTable(conect_bd, "tabela_gastos_municipios") == FALSE) {
+
+    DBI::dbExecute(conect_bd, "CREATE TABLE tabela_gastos_municipios (
+                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                    fase TEXT NOT NULL,
+                                                    data_do_pagamento TEXT NOT NULL,
+                                                    valor_do_pagamento TEXT NOT NULL,
+                                                    documento TEXT NOT NULL,
+                                                    empenho TEXT NOT NULL,
+                                                    data_empenho TEXT NOT NULL,
+                                                    tipo_de_empenho TEXT NOT NULL,
+                                                    favorecido TEXT NOT NULL,
+                                                    valor_do_empenho TEXT NOT NULL,
+                                                    valor_das_retencoes TEXT NOT NULL,
+                                                    restos_a_pagar TEXT NOT NULL,
+                                                    conta_bancaria TEXT NOT NULL,
+                                                    fonte_de_recurso_tcm TEXT NOT NULL,
+                                                    fonte_de_recurso_gestor TEXT NOT NULL,
+                                                    tipo_de_documento TEXT NOT NULL,
+                                                    cod_municipio TEXT NOT NULL,
+                                                    municipio TEXT NOT NULL,
+                                                    cod_entidade TEXT NOT NULL,
+                                                    entidade TEXT NOT NULL,
+                                                    poder TEXT NOT NULL,
+                                                    orgao TEXT NOT NULL,
+                                                    unidade_orcamentaria TEXT NOT NULL,
+                                                    funcao TEXT NOT NULL,
+                                                    subfuncao TEXT NOT NULL,
+                                                    programa TEXT NOT NULL,
+                                                    tipo_acao TEXT NOT NULL,
+                                                    acao TEXT NOT NULL,
+                                                    natureza_da_despesa_tcm TEXT NOT NULL,
+                                                    natureza_da_despesa_gestor TEXT NOT NULL,
+                                                    fonte_de_recurso_tcm_2 TEXT NOT NULL,
+                                                    fonte_de_recurso_gestor_2 TEXT NOT NULL,
+                                                    licitacao TEXT NOT NULL,
+                                                    Dispensa_Inexigibilidade TEXT NOT NULL,
+                                                    contrato TEXT NOT NULL,
+                                                    declaracao TEXT NOT NULL,
+                                                    foreign_key TEXT NOT NULL,
+                                                    nm_arq_html_despesa TEXT NOT NULL,
+                                                    hash_arq_html_despesa TEXT NOT NULL,
+                                                    log_tratamento_arq_html_despesa TEXT NOT NULL,
+                                                    link TEXT NOT NULL
+                                                    );"
+                                                    )
+  
+}
+
+  
+}
+
+
+```
+
+
+4 - Função que cria e atualiza a tabela dCalendario no BD
+
+```{r criar_tab_dcalendario, eval=FALSE}
+
+# Criar a função que gera a tabela com a relação de meses e ano para o Web Scraping;
+criar_tb_dcalendario <- function(data_inicial) {
+
+# Cria a conexão com o SGBD;
+conect_bd <- conexao_sgbd()
+
+# Cria a tabela com a relação de meses e ano para o Web Scraping;
+tb_dcalendario <- tibble::tibble(data = seq(ymd(paste0(data_inicial,"-01-01")), (today() - day(today()) + 1 - months(2)), by = "month"),
+                                 ano = year(data),
+                                 mes = month(data),
+                                 log_create = log_data_hora()) %>%
+                  dplyr::mutate(data = as.character(data),
+                  # A coluna 'data', 'ano' e 'mês' foram transformados em 'character' 
+                  # para ser registrada no SQLite como TEXT, já que ele não suporta o formato DATE;
+                                ano = as.character(ano),
+                                mes = as.character(mes))
+
+
+DBI::dbWriteTable(conect_bd, "tabela_dcalendario", tb_dcalendario, overwrite = TRUE)
+
+print("A tabela `tabela_dcalendario` foi criada com sucesso no BD")
+
+}
+
+```
+
+
+5 - Cria 2 (duas) funções: A 'scraping_tcm_municipios', responsável por capturar o código e nome dos municípios; e a 'criar_tb_dmunicipios' que gravará o resultado do scraping no BD do SQLite na tabela 'tabela_tcm_dmunicipios'.
+
+```{r criar_tab_dmunicipios}
+
+
+scraping_tcm_municipios <- function() {
+
+# Cria a conexão com o SGBD;
+conect_bd <- conexao_sgbd()
+
+# Scraping do código e nome dos municípios, e por meio do qual será feio o scraping
+url_tcm <- url_tcm()
+
+#!!! Implementar configuração para testar conexão
+#!!! Se não tiver conexão, retornar pint com "Não foi identificado conexão com a internet" e
+#!!! tentar novamente depois de 5 minutos.
+list_tcm_municipios <- httr::GET(url_tcm) %>% 
+                       xml2::read_html() %>% 
+                       rvest::html_nodes("#municipio > option") 
+
+cod_municipio <- list_tcm_municipios %>% 
+                 rvest::html_attr("value")
+
+nm_municipio <- list_tcm_municipios %>% 
+                rvest::html_text() %>% 
+                stringr::str_replace(., "[*]", "") %>% 
+                stringr::str_trim()
+
+tabela_tcm_dmunicipios <- tibble::tibble(cod_municipio = cod_municipio,
+                                         nm_municipio = nm_municipio,
+                                         log_create = log_data_hora()) %>%
+                          dplyr::filter(cod_municipio != "")
+
+return(tabela_tcm_dmunicipios)
+
+}
+
+######################################################################################
+
+criar_tb_dmunicipios <- function() {
+
+# Cria a conexão com o SGBD;
+conect_bd <- conexao_sgbd()
+  
+# Executa o scraping que captura os códigos e nomes dos municípios
+tabela_tcm_dmunicipios <- scraping_tcm_municipios()
+
+
+#!!! Colocar uma condição IF para identificar se a tabela já existe
+DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios", tabela_tcm_dmunicipios, overwrite = TRUE)
+
+print("A tabela `tabela_tcm_dmunicipios` foi criado com sucesso no BD")
+
+}
+
+```
+
+
+6 - Nesta etapa, também criamos 02(duas) funções: Cria 2 (duas) funções: A 'scraping_tcm_entidades_ws', responsável por capturar o código e nome dos entes muninipais; e a 'criar_tb_dmunicipios_entidades' que gravará o resultado do scraping no BD do SQLite na tabela 'tabela_tcm_dmunicipios_entidades'.
+
+```{r criar_tab_dmunicipios_entidades}
+
+scraping_tcm_entidades_ws <- function(cod_municipio, nm_municipio, log_create) {
+
+# URL do Web Service do TCM-Ba;
+url_tcm_entidades_ws <- url_tcm_entidades_ws()
+
+# Cria a conexão com o SGBD;
+conect_bd <- conexao_sgbd()
+
+# Scraping do código e nome dos entes municipais via Web Service;
+resultado <- paste0(url_tcm_entidades_ws, cod_municipio) %>%
+             httr::GET() %>%
+             httr::content() %>%
+             purrr::map_dfr(tibble::as_tibble)
+
+
+# Tratamento dos dados obtidos via Web Service;
+tratar_resultado <- resultado %>%
+                    magrittr::set_names(c("cod_entidade", "nm_entidade")) %>%
+                    dplyr::mutate(cod_municipio = cod_municipio, nm_municipio = nm_municipio,
+                                  log_create = log_data_hora()) %>%
+                    dplyr::mutate_all(stringr::str_to_upper) %>%
+                    dplyr::mutate_all(stringr::str_trim) %>%
+                    dplyr::select(cod_municipio, nm_municipio, cod_entidade, nm_entidade, log_create)
+
+
+#!!! Incluir rotina para evitar duplicidade de dados
+DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios_entidades", tratar_resultado, append = TRUE)
+
+
+
+# Print para visualizar a progressão do scraping
+progresso <- paste("Scraping:", tratar_resultado$cod_municipio, "-", tratar_resultado$nm_municipio,
+                   "-", tratar_resultado$cod_entidade, "-", tratar_resultado$nm_entidade) %>%
+             print()
+
+# Função return() para que o output seja o dataframe que está na variável 'tratar_resultado';
+return(tratar_resultado)
+
+}
+
+######################################################################################
+
+criar_tb_dmunicipios_entidades <- function() {
+
+# Cria a conexão com o SGBD;
+conect_bd <- conexao_sgbd()  
+
+
+cod_nm_mun <- DBI::dbReadTable(conect_bd, "tabela_tcm_dmunicipios")
+
+
+#Gera a tabela com dados dos municípios e entidades, a partir do scraping do WS do TCM-Ba
+scraping_mun_ent <- purrr::pwalk(cod_nm_mun, scraping_tcm_entidades_ws)
+
+
+#!!! Incluir rotina para evitar duplicidade de dados
+# DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios_entidades", scraping_mun_ent, overwrite = TRUE)
+
+
+print("A tabela `tabela_tcm_dmunicipios_entidades` foi criado com sucesso no BD")
+
+}
+
+
+```
+
+
+7 - Função do Web Scraping para obter as páginas e links das depesas
+
+```{r scraping_tab_paginas_links, message=FALSE, warning=FALSE}
+
+######################################################################################
+
+
+scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade, nm_entidade, pagina) {
+
+  # Cria a conexão com o SGBD;
+  conect_bd <- conexao_sgbd()
+  
+
+  if (dir.exists(file.path("resposta_scraping_links", nm_municipio)) == FALSE) {
+  dir.create(file.path("resposta_scraping_links", nm_municipio))
+  }
+      
+  if (dir.exists(file.path("resposta_scraping_links", nm_municipio, nm_entidade)) == FALSE) {
+  dir.create(file.path("resposta_scraping_links", nm_municipio, gsub("/", "", nm_entidade)))
+  }
+  
+  
+  repeat {
+      
+      site_tcm <- paste0("http://www.tcm.ba.gov.br/consulta-de-despesas/?pg=", pagina,
+                        "&txtEntidade=&ano=", ano,
+                        "&favorecido=&entidade=", cod_entidade,
+                        "&orgao=&orcamentaria=&despesa=&recurso=&desp=P&dtPeriodo1=&dtPeriodo2=")
+        
+      # !!! Criar função para tratar possíveis erros de requisição
+      # !!! E grava o registro do erro na coluna 'status_request_html_pag' da tabbela tabela 'tabela_paginas_links'
+      # !!! Criar rotina para tratar o timeout
+      # !!! if timeout positivo, então pare e tente novamente após 30 segundos
+      scraping_tcm_paginas <- httr::GET(site_tcm)
+  
+      
+  
+      # Verifica se há tabela, pelo seu tamanho, no HTML.
+      # Servirá como gatilho de parar o repeat quando chegar na última página
+      gatinho_to_break <- scraping_tcm_paginas %>%
+                          xml2::read_html() %>%
+                          rvest::html_node("#tabelaResultado") %>%
+                          rvest::html_table() %>%
+                          .$Documento %>%
+                          length() 
+  
+      # Se o gatilho de verificação for igual a 0, então ele pula para a próxima entidade municipal
+          if (gatinho_to_break == 0 ) { 
+        
+            print(paste("Fim das requisições de", nm_entidade, "na Página", pagina))
+            
+            break
+            
+          } else {
+            
+  # Grava a hora e data da requisição para ser incluída no arquivo HMTL e no BD 
+  log_request <- log_data_hora()
+  
+  pegar_paginas <- scraping_tcm_paginas %>%
+                   xml2::read_html() %>%
+                   rvest::html_nodes("#tabelaResultado") %>%
+                   xml2::write_html(file.path("resposta_scraping_links", nm_municipio,
+                                               gsub("/", "", nm_entidade),
+                                               paste0(ano, "-", cod_entidade,
+                                                      "-pag_", pagina, "_", ".html")))
+  
+  # Gera o Hash do Arquivo HTML que foi gravado
+  hash_arq_html <- git2r::hashfile(file.path("resposta_scraping_links", nm_municipio,
+                                             gsub("/", "", nm_entidade),
+                                             paste0(ano, "-", cod_entidade,
+                                                    "-pag_", pagina, "_", ".html")))
+  
+  
+  tb_paginas_links <- tibble::tibble(ano = ano,
+                                     cod_municipio = cod_municipio,
+                                     nm_municipio = nm_municipio,
+                                     cod_entidade = cod_entidade,
+                                     nm_entidade = nm_entidade,
+                                     pagina = pagina,
+                                     status_request_html_pag = "S",
+                                     log_request_html_pag = log_request,
+                                     nm_arq_html_pag = paste0(ano, "-", cod_entidade,
+                                                              "-pag_", pagina, "_", ".html"),
+                                     arq_html_pag_tratado = "N",
+                                     hash_arq_html_pag = hash_arq_html,
+                                     log_tratamento_arq_html_pag = "")
+
+
+  #!!! Garantir a sequência no row_names
+  DBI::dbWriteTable(conect_bd, "tabela_paginas_links", tb_paginas_links, append = TRUE)
+
+  print(paste0("Scraping - ", nm_entidade, " - ", ano," - Página: ", pagina))
+          
+  
+  # Gerar controle de paginação a partir do tamanho da tabela que está sendo raspada.
+  if (gatinho_to_break < 20 ) {
+
+  pagina <- pagina
+  
+  print(paste("Fim das requisições de", nm_entidade, "na Página", pagina))
+  
+  break
+
+  }
+
+  if (gatinho_to_break == 20 ) {
+
+
+  # Soma a variável para garantir que o Web Scraping corra pelas paginas
+  pagina <- pagina + 1
+
+  }
+  
+
+DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas 
+                           SET pagina = :pagina
+                           WHERE id = :id',
+               params = list(pagina = as.character(pagina),
+                             id = as.character(id)))
+  
+}
+
+  
+}
+}
+
+
+######################################################################################
+
+executar_scraping_num_pags <- function(ano_alvos, cod_municipios_alvos) {
+
+# Cria a conexão com o SGBD;
+conect_bd <- conexao_sgbd()
+
+criar_pastas()
+
+criar_tb_dcalendario(ano_alvos)
+
+
+tb_municipios_alvos_novos <- DBI::dbReadTable(conect_bd, "tabela_tcm_dmunicipios_entidades") %>%
+                             dplyr::filter(cod_municipio %in% cod_municipios_alvos) %>%
+                             dplyr::mutate(ano = ano_alvos) %>%
+                             dplyr::mutate(pagina = "1") %>%
+                             dplyr::select("ano", "cod_municipio", "nm_municipio",
+                                          "cod_entidade", "nm_entidade", "pagina")
+
+tb_municipios_alvos_anteriores <- DBI::dbReadTable(conect_bd, "tabela_entidades_alvos_paginas")
+
+cod_mun_ant <- tb_municipios_alvos_anteriores$cod_municipio
+
+ano_ant <- tb_municipios_alvos_anteriores$ano %>%
+           unique()
+
+
+tb_municipios_alvos_atualizada <- tb_municipios_alvos_novos %>%
+                                  # o sinal ! antes de cod_municipio é um
+                                  # operador lógico para excluir os dados da coluna (Lei de De Morgan)
+                                    dplyr::filter(!cod_municipio %in% cod_mun_ant & !ano %in% ano_ant)
+                                  
+DBI::dbWriteTable(conect_bd, "tabela_entidades_alvos_paginas",
+                  tb_municipios_alvos_atualizada, append = TRUE)
+
+print("Tabela 'tabela_entidades_alvos_paginas' gerada com sucesso!")
+
+
+entidades_alvos <- DBI::dbReadTable(conect_bd, "tabela_entidades_alvos_paginas")
+
+purrr::pwalk(entidades_alvos, scraping_num_pags)
+
+
+}
+
+
+```
+
+
+
+8 - Função que faz o Web Scraping para obter os arquivos HMTL que contêm os Extatos das Despesas 
+
+```{r scraping_html_despesas}
+
+executar_scraping_html_despesas <- function() {
+  
+  # Cria a conexão com o SGBD;
+  conect_bd <- conexao_sgbd()
+  
+  criar_tb_requisicoes_despesas()
+  
+  tb_requisicoes <- DBI::dbReadTable(conect_bd, "tabela_requisicoes") %>%
+                    dplyr::filter(status_request_html_despesa == "N")
+
+  purrr::pwalk(tb_requisicoes, scraping_html_despesas)
+  
+  print("Web Scraping dos arquivos HTML das Despesas foi concluído")
+
+}
+
+######################################################################################
+
+criar_tb_requisicoes_despesas <- function() {
+  
+  # Cria a conexão com o SGBD;
+  conect_bd <- conexao_sgbd()
+    
+
+  tab_html_num_pags <- DBI::dbReadTable(conect_bd, "tabela_paginas_links") %>%
+                       dplyr::filter(arq_html_pag_tratado == "N")
+  
+  
+  purrr::pwalk(tab_html_num_pags, parser_arq_html_pags)
+  
+  print("Tabela de requisições criada com sucesso")
+
+}
+
+
+######################################################################################
+
+
+parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
+                                 cod_entidade, nm_entidade, pagina,
+                                 status_request_html_pag, log_request_html_pag,
+                                 nm_arq_html_pag, hash_arq_html_pag, ...) {
+
+
+  # Cria a conexão com o SGBD;
+  conect_bd <- conexao_sgbd()
+  
+  # Registra o horário do parser para ser usado como registro do log na coluna 'log_tratamento_arq_html_pag'
+  log_parser <- log_data_hora()
+  
+  # Realiza o parser no arquivo HTML
+  parser_arq_html <- xml2::read_html(file.path("resposta_scraping_links", nm_municipio,
+                                               gsub("/", "", nm_entidade), nm_arq_html_pag))
+
+  # Extrai a tabela do arquivo HTML
+  convert_html_tab <- parser_arq_html %>%
+                      rvest::html_node("#tabelaResultado") %>% 
+                      rvest::html_table()
+  
+  # Extrai os registros da coluna Documento da tabela
+  doc_arq_html_pag <- convert_html_tab %>%
+                      .$Documento
+  
+  # Extrai os registros da coluna Empenho da tabela
+  emp_arq_html_pag <- convert_html_tab %>%
+                      .$Empenho %>%
+                      as.character()
+                      
+  # Extrai os registros da coluna Valor da tabela
+  valor_arq_html_pag <- convert_html_tab %>%
+                        .$Valor %>%
+                        readr::parse_number(locale = locale(grouping_mark = ".", decimal_mark = ","))
+  
+  # Extrai os links que estavam que estabam incorporados na tag 'a' da coluna Documento
+  link_arq_html_pag <- parser_arq_html %>%
+                       rvest::html_nodes("a") %>%
+                       rvest::html_attrs() %>%
+                       unlist()
+  
+  
+  # Agrega todos os dados para formar a tabela de requisições
+  tb_requisicoes <- tibble::tibble(
+                                  ano = ano,
+                                  cod_municipio = cod_municipio,
+                                  nm_municipio = nm_municipio,
+                                  cod_entidade = cod_entidade,
+                                  nm_entidade = nm_entidade,
+                                  pagina = pagina,
+                                  status_request_html_pag = status_request_html_pag,
+                                  log_request_html_pag = log_request_html_pag,
+                                  nm_arq_html_pag = nm_arq_html_pag,
+                                  arq_html_pag_tratado = "S",
+                                  hash_arq_html_pag = hash_arq_html_pag,
+                                  log_tratamento_arq_html_pag = log_parser,
+                                  documento = doc_arq_html_pag,
+                                  empenho = emp_arq_html_pag,
+                                  valor_documento = valor_arq_html_pag,
+                                  link_despesa = link_arq_html_pag,
+                                  nm_arq_html_despesa = "",
+                                  status_request_html_despesa = "N",
+                                  log_request_html_despesa = "",
+                                  arq_html_despesa_tratado = "N",
+                                  hash_arq_html_despesa = "",
+                                  log_tratamento_arq_html_despesa = ""
+                                  )
+  
+  # Grava a tabela 'tb_requisicoes' no Bando de Dados na tabela 'tabela_requisicoes'
+  DBI::dbWriteTable(conect_bd, "tabela_requisicoes", tb_requisicoes, append = TRUE)
+  
+  
+  # Grava "S" na tabela '' para controlar os arquivos HTML já tratados 
+  DBI::dbExecute(conect_bd, 'UPDATE tabela_paginas_links 
+                             SET arq_html_pag_tratado = "S"
+                             WHERE cod_entidade = :cod_entidade AND
+                                   pagina = :pagina;',
+                 params = list(cod_entidade = as.character(cod_entidade),
+                               pagina = as.character(pagina)))
+  
+  print(paste0("Parser:", pagina, " - ", nm_arq_html_pag, " - ", nm_entidade))
+  
+
+}
+
+
+######################################################################################
+
+
+scraping_html_despesas <- function(id, ano, cod_municipio, nm_municipio,
+                                   cod_entidade, nm_entidade, pagina,
+                                   status_request_html_pag, log_request_html_pag,
+                                   nm_arq_html_pag, documento, valor_documento,
+                                   link_despesa, ...) {
+  
+  if (dir.exists(file.path("resposta_scraping_html", nm_municipio)) == FALSE) {
+      dir.create(file.path("resposta_scraping_html", nm_municipio))
+  }
+      
+  if (dir.exists(file.path("resposta_scraping_html", nm_municipio, nm_entidade)) == FALSE) {
+      dir.create(file.path("resposta_scraping_html", nm_municipio, gsub("/", "", nm_entidade)))
+  }
+
+# Cria a conexão com o SGBD;
+conect_bd <- conexao_sgbd()
+  
+log_request <- log_data_hora()
+
+scraping_html_purrr <- purrr::safely(httr::GET)
+
+scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
+    
+    # Verifica se há erro de querisição 404. Se sim, grava o erro numa tabela de log no BD.
+       if (scraping_html$result$status_code == 404) {
+
+           print(paste("Erro 404 de Requisição", "-",
+                       nm_arq_html_pag, "-", documento))
+         
+           tb_request <- tibble::tibble(
+                                        log = scraping_html$result$status_code,
+                                        time = log_request,
+                                        id = id,
+                                        nm_entidade = nm_entidade,
+                                        pagina = pagina,
+                                        documento = documento,
+                                        link = link_despesa
+                                        )
+
+           DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+
+          # Parar a iteração e pular para a próxima requisição.
+           break
+
+ }
+      # Verifica houve timeout. Se sim, esperar 20 segundos e tentar novamente.
+      if (length(scraping_html$result) == 0) {
+        
+          print(paste("Timeout estrapolou o tempo", "-", nm_arq_html_pag,
+                      "-", documento, "primeira tentativa"))
+        
+           tb_request <- tibble::tibble(
+                                        log = "timeout",
+                                        time = log_request,
+                                        id = id,
+                                        nm_entidade = nm_entidade,
+                                        pagina = pagina,
+                                        documento = documento,
+                                        link = link_despesa
+                                        )
+
+           DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+          
+           Sys.sleep(20)
+        
+}
+    # Segunda tentativa. Se houver timeout novamente, pular para a próxima requisição.
+    scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
+        
+      if (length(scraping_html$result) == 0) {
+        
+          print(paste("Timeout estrapolou o tempo", "-", nm_arq_html_pag,
+              "-", documento, "segunda tentativa"))
+        
+          tb_request <- tibble::tibble(
+                                      log = "timeout",
+                                      time = log_request,
+                                      id = id,
+                                      nm_entidade = nm_entidade,
+                                      pagina = pagina,
+                                      documento = documento,
+                                      link = link_despesa
+                                      )
+
+           DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+          
+           # Parar a iteração e pular para a próxima requisição
+           break
+      
+        
+} else {
+      
+      
+    nome_arquivo_html <- paste0(ano, "-", cod_entidade,
+                                "-pag_", pagina, "-doc_", documento,
+                                "-val_", valor_documento, "_.html")  
+      
+    
+    # scraping_html$result é proveniente da função 'scraping_html_purrr'
+    pegar_html_despesas <- scraping_html$result %>%
+                           xml2::read_html() %>%
+                           rvest::html_node("div.col-xs-12.content.padding_content") %>%
+                           xml2::write_html(file.path("resposta_scraping_html", nm_municipio,
+                                             gsub("/", "", nm_entidade), nome_arquivo_html))
+
+    
+    # Gera o Hash do Arquivo HTML que foi gravado
+    hash_arq_html_despesa <- git2r::hashfile(file.path("resposta_scraping_html", nm_municipio,
+                                             gsub("/", "", nm_entidade), nome_arquivo_html))
+    
+
+    
+  # Grava "S" na tabela 'tabela_paginas_links' para controlar os arquivos HTML já tratados 
+   DBI::dbExecute(conect_bd, 'UPDATE tabela_requisicoes 
+                              SET arq_html_pag_tratado = "S",
+                                  status_request_html_despesa = "S",
+                                  nm_arq_html_despesa = :nome_arquivo_html,
+                                  log_request_html_despesa = :log_request,
+                                  hash_arq_html_despesa = :hash_arq_html_despesa
+                              WHERE id = :id;',
+                  params = list(nome_arquivo_html = as.character(nome_arquivo_html),
+                                log_request = as.character(log_request),
+                                hash_arq_html_despesa = as.character(hash_arq_html_despesa),
+                                id = as.character(id)))
+    
+
+    print(paste0("Scraping - ", "Doc: ",documento, " - Pág: ", pagina,
+                 " - Ano: ",ano," - " ,nm_entidade))
+
+}
+
+}
+
+```
+
+
+10 - Função que faz o parser e o Data Munging dos arquivos HMTL que contêm os Extatos das Despesas
+
+```{r data_wrangling_html_despeas}
+
+data_wrangling_html <- function(id, ano, cod_municipio, nm_municipio,
+                                cod_entidade, nm_entidade, pagina,
+                                status_request_html_pag, log_request_html_pag,
+                                nm_arq_html_pag, documento, valor_documento,
+                                link_despesa, nm_arq_html_despesa,
+                                hash_arq_html_despesa,
+                                log_tratamento_arq_html_despesa, ...){
+
+ # Realiza o parser no arquivo HTML
+parser_arq_html <- xml2::read_html(file.path("resposta_scraping_html", nm_municipio,
+                                             gsub("/", "", nm_entidade), nm_arq_html_despesa),
+                                   encoding = "UTF-8")
+
+
+pegar_dados_html <- parser_arq_html %>%
+                    rvest::html_nodes("label+ span") %>%
+                    rvest::html_text() %>%
+                    stringr::str_trim()
+
+  
+tb_gastos_municipais <- tibble::tibble(
+                                      fase = pegar_dados_html[1],
+                                      data_do_pagamento = pegar_dados_html[2],
+                                      valor_do_pagamento = pegar_dados_html[3],
+                                      documento = pegar_dados_html[4],
+                                      empenho = pegar_dados_html[5],
+                                      data_empenho = pegar_dados_html[6],
+                                      tipo_de_empenho = pegar_dados_html[7],
+                                      favorecido = pegar_dados_html[8],
+                                      valor_do_empenho = pegar_dados_html[9],
+                                      valor_das_retencoes = pegar_dados_html[10],
+                                      restos_a_pagar = pegar_dados_html[11],
+                                      conta_bancaria = pegar_dados_html[12],
+                                      fonte_de_recurso_tcm = pegar_dados_html[13],
+                                      fonte_de_recurso_gestor = pegar_dados_html[14],
+                                      tipo_de_documento = pegar_dados_html[15],
+                                      # Enriqueci a tabela com o dado do código do município
+                                      cod_municipio = cod_municipio,
+                                      municipio = pegar_dados_html[16],
+                                      # Enriqueci a tabela com o dado do código da entidade municipal
+                                      cod_entidade = cod_entidade,
+                                      entidade = pegar_dados_html[17],
+                                      poder = pegar_dados_html[18],
+                                      orgao = pegar_dados_html[19],
+                                      unidade_orcamentaria = pegar_dados_html[20],
+                                      funcao = pegar_dados_html[21],
+                                      subfuncao = pegar_dados_html[22],
+                                      programa = pegar_dados_html[23],
+                                      tipo_acao = pegar_dados_html[24],
+                                      acao = pegar_dados_html[25],
+                                      natureza_da_despesa_tcm = pegar_dados_html[26],
+                                      natureza_da_despesa_gestor = pegar_dados_html[27],
+                                      fonte_de_recurso_tcm_2 = pegar_dados_html[28],
+                                      fonte_de_recurso_gestor_2 = pegar_dados_html[29],
+                                      licitacao = pegar_dados_html[30],
+                                      Dispensa_Inexigibilidade = pegar_dados_html[31],
+                                      contrato = pegar_dados_html[32],
+                                      declaracao = pegar_dados_html[33],
+                                      foreign_key = id,
+                                      nm_arq_html_despesa = nm_arq_html_despesa,
+                                      hash_arq_html_despesa = hash_arq_html_despesa,
+                                      log_tratamento_arq_html_despesa = log_tratamento_arq_html_despesa,
+                                      link = link_despesa
+                                      )
+                                      
+
+log_request <- log_data_hora()
+
+# Cria a conexão com o SGBD;
+conect_bd <- conexao_sgbd()
+
+# Cria as tabelas no SGBD.
+criar_tabelas_bd()         
+
+DBI::dbWriteTable(conect_bd, "tabela_gastos_municipios", tb_gastos_municipais, append = TRUE)
+
+
+# Grava "S" na tabela 'tabela_requisicoes' para controlar os arquivos HTML já tratados 
+DBI::dbExecute(conect_bd, 'UPDATE tabela_requisicoes
+                           SET arq_html_despesa_tratado = "S",
+                               log_tratamento_arq_html_despesa = :log_request
+                           WHERE id = :id;',
+               params = list(log_request = as.character(log_request),
+                             id = as.character(id)))
+
+return(print(paste("Tratado:", nm_arq_html_despesa, "-", pagina, "-", nm_entidade)))
+
+
+}
+
+######################################################################################
+
+#Pré-Processamento dos Dados
+
+executar_tidy_data <- function() {
+
+  # Cria a conexão com o SGBD.
+  conect_bd <- conexao_sgbd()
+  
+  # Cria as tabelas no SGBD.
+  criar_tabelas_bd()
+  
+  
+  tb_gastos_municipios <- DBI::dbReadTable(conect_bd, "tabela_gastos_municipios") %>%
+                          tibble::as.tibble() %>%
+                          tidyr::separate(col = favorecido,
+                                          into = c("cod_favorecido",
+                                                   "nm_favorecido"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>%    
+                          tidyr::separate(col = fonte_de_recurso_tcm,
+                                          into = c("cod_fonte_de_recurso_tcm",
+                                                   "nm_fonte_de_recurso_tcm"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>%
+                          tidyr::separate(col = fonte_de_recurso_gestor,
+                                          into = c("cod_fonte_de_recurso_gestor",
+                                                   "nm_fonte_de_recurso_gestor"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>%
+                          tidyr::separate(col = orgao,
+                                          into = c("cod_orgao",
+                                                   "nm_orgao"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>%
+                          tidyr::separate(col = unidade_orcamentaria,
+                                          into = c("cod_unidade_orcamentaria",
+                                                   "nm_unidade_orcamentaria"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>%
+                          tidyr::separate(col = funcao,
+                                          into = c("cod_funcao",
+                                                   "nm_funcao"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>% 
+                          tidyr::separate(col = subfuncao,
+                                          into = c("cod_subfuncao",
+                                                   "nm_subfuncao"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>% 
+                          tidyr::separate(col = programa,
+                                          into = c("cod_programa",
+                                                   "nm_programa"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>% 
+                          tidyr::separate(col = tipo_acao,
+                                          into = c("cod_tipo_acao",
+                                                   "nm_tipo_acao"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>%
+                          tidyr::separate(col = acao,
+                                          into = c("cod_acao",
+                                                   "nm_acao"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>% 
+                          tidyr::separate(col = natureza_da_despesa_tcm,
+                                          into = c("cod_natureza_da_despesa_tcm",
+                                                   "nm_natureza_da_despesa_tcm"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>%
+                          tidyr::separate(col = natureza_da_despesa_gestor,
+                                          into = c("cod_natureza_da_despesa_gestor",
+                                                   "nm_natureza_da_despesa_gestor"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>%
+                          tidyr::separate(col = fonte_de_recurso_tcm_2,
+                                          into = c("cod_fonte_de_recurso_tcm_2",
+                                                   "nm_fonte_de_recurso_tcm_2"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>%
+                          tidyr::separate(col = fonte_de_recurso_gestor_2,
+                                          into = c("cod_fonte_de_recurso_gestor_2",
+                                                   "nm_fonte_de_recurso_gestor_2"),
+                                          sep = " - ",
+                                          remove = TRUE, extra = "merge") %>%
+                          dplyr::mutate(valor_das_retencoes = stringr::str_replace(valor_das_retencoes, "-", "0")) %>%
+                          dplyr::mutate(valor_das_retencoes = valor_monetario(valor_das_retencoes)) %>%
+                          dplyr::mutate(valor_do_pagamento = valor_monetario(valor_do_pagamento)) %>%
+                          dplyr::mutate(valor_do_empenho = valor_monetario(valor_do_empenho)) %>%
+                          dplyr::mutate_all(funs(stringi::stri_trans_general(., "latin-ascii"))) %>%
+                          dplyr::mutate_all(stringr::str_to_upper) %>%
+                          dplyr::mutate_all(stringr::str_trim)
+
+DBI::dbWriteTable(conect_bd, "tabela_gastos_municipais_arrumados", tb_gastos_municipios, overwrite = TRUE)
+  
+readr::write_delim(tb_gastos_municipios, file.path("bd_sqlite", "tabela_gastos_municipais_arrumados.csv"),
+                   delim = ";")
+  
+}
+
+######################################################################################
+
+
+executar_data_wrangling_html_despeas <- function() {
+  
+# Cria a conexão com o SGBD;
+conect_bd <- conexao_sgbd()
+
+  tb_requisicoes <- DBI::dbReadTable(conect_bd, "tabela_requisicoes") %>%
+                    dplyr::filter(arq_html_despesa_tratado == "N" & nm_arq_html_despesa != "")
+  
+  
+  if (nrow(tb_requisicoes) == 0) {
+    
+        print("Todos os Arquivos HTML das despesas já foram tratados")
+    
+    } else {
+
+        purrr::pwalk(tb_requisicoes, data_wrangling_html)
+        
+        print("Todos os Arquivos HTML das despesas já foram tratados")
+
+}
+
+}
+```
+
+
+
+
+
+```{r executar}
+
+
+# Variável que define a partir de que ano os dados serão raspados.
+ano <- c("2018")
+
+# Variável que define os municípios (e respectios entes municipais) serão raspados.
+# Web Scraping das entidades municipais somente do Município de Salvador (Prefeitura, Câmara e Adm. Indireta)
+cod_municipios <- c(2927408)
+
+# Web Scraping das entidades municipais dos Municípios de:
+# Santo Antõnio de Jesus, Santo Amaro, Nazaré, Porto Seguro, Ilhéus, Barreiras, São Francisco do Conde e Salvador
+#cod_municipios <- c(2928703, 2928604, 2922508, 2925303, 2913606, 2903201, 2929206, 2927408)
+
+# Função que cria as pastas dos arquivos
+criar_pastas()
+
+# Função que cria 4 tabelas que serão armazenadas no SQLite.
+criar_tabelas_bd()
+
+# Função que cria a tabela dCalendario
+criar_tb_dcalendario(ano)
+
+# Função que faz o Web Scraping do código e nome dos Municípios
+criar_tb_dmunicipios()
+
+# Função que faz o Web Scraping (via Web Service) do código e nome das Entidades.
+criar_tb_dmunicipios_entidades()
+
+# Função que cria a tabela das entidades alvos e faz o Web Scraping das páginas
+# que têm os links que darão acesso as páginas HTML que contêm os dados sobre as despesas
+executar_scraping_num_pags(ano, cod_municipios)
+
+# Função cria a tabela de requisições e faz o Web Scraping das páginas HTML que contêm
+# os dados das despesas
+executar_scraping_html_despesas()
+
+# Função que faz o parser dos HTMLs das depesas e o Data Wrangling dos HTMLs
+executar_data_wrangling_html_despeas()
+
+# Função que faz o pré-processamento dos dados obtidos do HTML, aplicando o conceito Tidy Data 
+executar_tidy_data()
+
+# O conceito Tidy Data de Hadley Wickham tem por objetivo arrumar os dados
+# para que eles sejam utilizados em softwares de estatísticas ou
+# de Business Intelligence sem a necessidade de realizar
+# mais transformações nos dados.
+
+# O Conceito está resumido nestas três regras:
+# - Cada variável deve ter sua própria coluna.
+# - Cada observação deve ter sua própria linha.
+# - Cada valor deve ter sua própria célula.
+
+#(http://r4ds.had.co.nz/tidy-data.html)
+
+```
+
+
+
+
+
+
+```{r }
+
+######################################################################################
+
+# BUGs
+#!!! Evitar duplicidade de dados na hora de raspar os HTMLs das páginas das entidades.
+#    Verificar se a duplicidade de dados deve ser abordada no Scraping ou na etapa do Parser
+
+
+# MELHORIAS
+#!!! Aperfeiçoar o código e a lógica da função 'scraping_num_pags'
+#!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária)
+#!!! Verificar se é possível reduzir o uso de conexão ao BD nas funções, ou usar melhor a conexão com o BD
+#!!! Verificar e corrigir o aumento progressivo da memória RAM durante o Web Scraping
+#!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`
+
+
+# IMPLEMENTAÇÕES
+#!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
+#    bem como gravar logs
+#!!! Implementar uma função para identificar HTML com problemas/homissões no seu conteúdo devido a problemas
+#    no servidor do TCM ao responder as requisições
+#!!! Estruturar todo o código para execução em cadeia
+#!!! Desenvolver Função de backup do BD
+#!!! Desenvolver o Packrat do Web Scraping
+#!!! Implantar o Docker do Rstudio com o Packrat do Web Scraping
+#!!! Finalizar o Código para que se torne automatizado com o CronR/CronTab
+#!!! Desenvolver um API com o pacote 'Plumber'
+#!!! Documentar todo o código
+#!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
+
+
+#Prioridades
+#!!! Configurar o Git no RStudio
+#!!! Evitar duplicidade de dados na hora de raspar os HTMLs das páginas das entidades.
+#    Verificar se a duplicidade de dados deve ser abordada no Scraping ou na etapa do Parser
+#!!! Docker do RStudio no Digital Ocean
+#!!! Documentar todo o código
+
+######################################################################################
+
+
+
+```
+
