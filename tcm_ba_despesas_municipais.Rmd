@@ -604,9 +604,11 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
                                      id = as.character(id)))
         
         DBI::dbExecute(conect_bd, 'UPDATE tabela_paginas_links 
-                                   SET arq_html_pag_tratado = "N"
+                                   SET arq_html_pag_tratado = "N",
+                                       hash_arq_html_pag = :hash_arq_html
                                    WHERE nm_arq_html_pag = :nm_arq_html_pag',
-                       params = list(nm_arq_html_pag = as.character(nm_arq_html_pag)))
+                       params = list(nm_arq_html_pag = as.character(nm_arq_html_pag),
+                                     as.character(hash_arq_html)))
         
         break
         
