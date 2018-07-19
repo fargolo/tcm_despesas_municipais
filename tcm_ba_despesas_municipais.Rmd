@@ -462,7 +462,7 @@ tratar_resultado <- resultado %>%
 
 
 #!!! Incluir rotina para evitar duplicidade de dados
-DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios_entidades", tratar_resultado, append = TRUE)
+#DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios_entidades", tratar_resultado, append = TRUE)
 
 
 
@@ -471,7 +471,7 @@ progresso <- paste("Scraping:", tratar_resultado$cod_municipio, "-", tratar_resu
                    "-", tratar_resultado$cod_entidade, "-", tratar_resultado$nm_entidade) %>%
              print()
 
-DBI::dbDisconnect(conect_bd)
+#DBI::dbDisconnect(conect_bd)
 
 # Função return() para que o output seja o dataframe que está na variável 'tratar_resultado';
 return(tratar_resultado)
@@ -490,11 +490,10 @@ cod_nm_mun <- DBI::dbReadTable(conect_bd, "tabela_tcm_dmunicipios")
 
 
 #Gera a tabela com dados dos municípios e entidades, a partir do scraping do WS do TCM-Ba
-scraping_mun_ent <- purrr::pwalk(cod_nm_mun, scraping_tcm_entidades_ws)
+scraping_mun_ent <- purrr::pmap_dfr(cod_nm_mun, scraping_tcm_entidades_ws)
 
 
-#!!! Incluir rotina para evitar duplicidade de dados
-# DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios_entidades", scraping_mun_ent, overwrite = TRUE)
+DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios_entidades", scraping_mun_ent, overwrite = TRUE)
 
 
 print("A tabela `tabela_tcm_dmunicipios_entidades` foi criado com sucesso no BD")
