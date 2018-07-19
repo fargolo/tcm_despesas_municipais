@@ -583,9 +583,9 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
 
     if (nm_arq_html_pag %in% tb_pag_links$nm_arq_html_pag & gatinho_to_break == 20) {
         
-        pagina <- pagina + 1
+        print(paste0("Scraping - ", nm_entidade, " - ", ano," - Página: ", pagina, "- Continuação"))
         
-        pegar_paginas <- scraping_tcm_paginas %>%
+                pegar_paginas <- scraping_tcm_paginas %>%
                          xml2::read_html() %>%
                          rvest::html_nodes("#tabelaResultado") %>%
                          xml2::write_html(file.path("resposta_scraping_links", nm_municipio,
@@ -593,7 +593,9 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
           
        # Gera o Hash do Arquivo HTML que foi gravado
         hash_arq_html <- git2r::hashfile(file.path("resposta_scraping_links", nm_municipio,
-                                                   gsub("/", "", nm_entidade), nm_arq_html_pag)) 
+                                                   gsub("/", "", nm_entidade), nm_arq_html_pag))
+        
+        pagina <- pagina + 1
       
         DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas 
                                    SET pagina = :pagina
@@ -605,10 +607,6 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
                                    SET arq_html_pag_tratado = "N"
                                    WHERE nm_arq_html_pag = :nm_arq_html_pag',
                        params = list(nm_arq_html_pag = as.character(nm_arq_html_pag)))
-        
-        
-        print(paste0("Scraping - ", nm_entidade, " - ", ano," - Página: ", pagina, "- Continuação"))
-          
         
         break
         
