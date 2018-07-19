@@ -1,7 +1,7 @@
 ---
 title: "Web Scraping - Gastos Públicos dos Municípios do Estado da Bahia"
 author: "George Santiago"
-date: "24 de junho de 2018"
+date: "18 de jlnho de 2018"
 output: html_document
 ---
 
@@ -538,9 +538,12 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
       # !!! Criar rotina para tratar o timeout
       # !!! if timeout positivo, então pare e tente novamente após 30 segundos
       scraping_tcm_paginas <- httr::GET(site_tcm)
+      
+      
+      # Grava a hora e data da requisição para ser incluída no arquivo HMTL e no BD 
+      log_request <- log_data_hora()
   
       
-  
       # Verifica se há tabela, pelo seu tamanho, no HTML.
       # Servirá como gatilho de parar o repeat quando chegar na última página
       gatinho_to_break <- scraping_tcm_paginas %>%
@@ -551,87 +554,116 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
                           length() 
   
       # Se o gatilho de verificação for igual a 0, então ele pula para a próxima entidade municipal
-          if (gatinho_to_break == 0 ) { 
+    if (gatinho_to_break == 0 ) { 
         
-            print(paste("Fim das requisições de", nm_entidade, "na Página", pagina))
+        print(paste("Fim das requisições de", nm_entidade, "na Página", pagina))
             
-            break
+        break
             
-          } else {
-            
-  # Grava a hora e data da requisição para ser incluída no arquivo HMTL e no BD 
-  log_request <- log_data_hora()
-  
-  pegar_paginas <- scraping_tcm_paginas %>%
-                   xml2::read_html() %>%
-                   rvest::html_nodes("#tabelaResultado") %>%
-                   xml2::write_html(file.path("resposta_scraping_links", nm_municipio,
-                                               gsub("/", "", nm_entidade),
-                                               paste0(ano, "-", cod_entidade,
-                                                      "-pag_", pagina, "_", ".html")))
-  
-  # Gera o Hash do Arquivo HTML que foi gravado
-  hash_arq_html <- git2r::hashfile(file.path("resposta_scraping_links", nm_municipio,
-                                             gsub("/", "", nm_entidade),
-                                             paste0(ano, "-", cod_entidade,
-                                                    "-pag_", pagina, "_", ".html")))
-  
-  
-  tb_paginas_links <- tibble::tibble(ano = ano,
-                                     cod_municipio = cod_municipio,
-                                     nm_municipio = nm_municipio,
-                                     cod_entidade = cod_entidade,
-                                     nm_entidade = nm_entidade,
-                                     pagina = pagina,
-                                     status_request_html_pag = "S",
-                                     log_request_html_pag = log_request,
-                                     nm_arq_html_pag = paste0(ano, "-", cod_entidade,
-                                                              "-pag_", pagina, "_", ".html"),
-                                     arq_html_pag_tratado = "N",
-                                     hash_arq_html_pag = hash_arq_html,
-                                     log_tratamento_arq_html_pag = "")
+}
 
+      
+    # Gera o nome do arquivo
+      nm_arq_html_pag <- paste0(ano, "-", cod_entidade,
+                                "-pag_", pagina, "_", ".html")
+      
+      tb_pag_links <- DBI::dbReadTable(conect_bd, "tabela_paginas_links")
+      
 
-  #!!! Garantir a sequência no row_names
-  DBI::dbWriteTable(conect_bd, "tabela_paginas_links", tb_paginas_links, append = TRUE)
+      
+    if (nm_arq_html_pag %in% tb_pag_links$nm_arq_html_pag & gatinho_to_break < 20) {
+        
+        
+        print(paste("Fim das requisições de", nm_entidade, "na Página", pagina, "- P"))
+        
+        break
+        
+}
+      
 
-  print(paste0("Scraping - ", nm_entidade, " - ", ano," - Página: ", pagina))
+    if (nm_arq_html_pag %in% tb_pag_links$nm_arq_html_pag & gatinho_to_break == 20) {
+        
+        
+        print(paste("Fim das requisições de", nm_entidade, "na Página", pagina, "- T"))
+        
+        break
+        
+        
+    } else {
+       
           
-  
-  # Gerar controle de paginação a partir do tamanho da tabela que está sendo raspada.
-  if (gatinho_to_break < 20 ) {
-
-  pagina <- pagina
-  
-  print(paste("Fim das requisições de", nm_entidade, "na Página", pagina))
-  
-  break
-
-  }
-
-  if (gatinho_to_break == 20 ) {
-
-
-  # Soma a variável para garantir que o Web Scraping corra pelas paginas
-  pagina <- pagina + 1
-
-  }
-  
-
-DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas 
-                           SET pagina = :pagina
-                           WHERE id = :id',
-               params = list(pagina = as.character(pagina),
-                             id = as.character(id)))
-  
-}
-
-  
-}
-  
-DBI::dbDisconnect(conect_bd)
+       pegar_paginas <- scraping_tcm_paginas %>%
+                        xml2::read_html() %>%
+                        rvest::html_nodes("#tabelaResultado") %>%
+                        xml2::write_html(file.path("resposta_scraping_links", nm_municipio,
+                                                    gsub("/", "", nm_entidade), nm_arq_html_pag))       
+          
+       # Gera o Hash do Arquivo HTML que foi gravado
+       hash_arq_html <- git2r::hashfile(file.path("resposta_scraping_links", nm_municipio,
+                                                   gsub("/", "", nm_entidade), nm_arq_html_pag)) 
+          
+    if (nm_arq_html_pag %in% tb_pag_links$nm_arq_html_pag) {
+      
+      
+        DBI::dbExecute(conect_bd, 'UPDATE tabela_paginas_links 
+                                   SET arq_html_pag_tratado = "N"
+                                   WHERE nm_arq_html_pag = :nm_arq_html_pag',
+                       params = list(nm_arq_html_pag = as.character(nm_arq_html_pag)))
+      
+      
+      } else {
+      
     
+         tb_paginas_links <- tibble::tibble(ano = ano,
+                                       cod_municipio = cod_municipio,
+                                       nm_municipio = nm_municipio,
+                                       cod_entidade = cod_entidade,
+                                       nm_entidade = nm_entidade,
+                                       pagina = pagina,
+                                       status_request_html_pag = "S",
+                                       log_request_html_pag = log_request,
+                                       nm_arq_html_pag = nm_arq_html_pag,
+                                       arq_html_pag_tratado = "N",
+                                       hash_arq_html_pag = hash_arq_html,
+                                       log_tratamento_arq_html_pag = "")
+         
+         DBI::dbWriteTable(conect_bd, "tabela_paginas_links", tb_paginas_links, append = TRUE)
+       
+}       
+       
+   print(paste0("Scraping - ", nm_entidade, " - ", ano," - Página: ", pagina))
+       
+       
+   if (gatinho_to_break < 20) {
+   
+   pagina <- pagina
+       
 }
+   
+   if (gatinho_to_break == 20) {
+   
+   pagina <- pagina + 1
+       
+}
+       
+  
+DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas 
+                          SET pagina = :pagina
+                          WHERE id = :id',
+              params = list(pagina = as.character(pagina),
+                            id = as.character(id)))
+     
+
+}     
+        
+ 
+}
+        
+ DBI::dbDisconnect(conect_bd)
+  
+}
+    
+
 
 
 ######################################################################################
@@ -736,10 +768,10 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
                                  status_request_html_pag, log_request_html_pag,
                                  nm_arq_html_pag, hash_arq_html_pag, ...) {
 
-
   # Cria a conexão com o SGBD;
   conect_bd <- conexao_sgbd()
   
+
   # Registra o horário do parser para ser usado como registro do log na coluna 'log_tratamento_arq_html_pag'
   log_parser <- log_data_hora()
   
@@ -799,8 +831,16 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
                                   log_tratamento_arq_html_despesa = ""
                                   )
   
+  # Carrega a 'tabela_requisicoes' para servir de teste lógico na etapa seguinte
+  tb_requisicoes_anterior <- DBI::dbReadTable(conect_bd, "tabela_requisicoes") %>%
+                             dplyr::filter(cod_entidade = cod_entidade)
+   
+  tb_requisicoes_atualizada <- tb_requisicoes %>%
+                               dplyr::filter(!link_arq_html_pag %in% tb_requisicoes_anterior$link_despesa)
+  
+  
   # Grava a tabela 'tb_requisicoes' no Bando de Dados na tabela 'tabela_requisicoes'
-  DBI::dbWriteTable(conect_bd, "tabela_requisicoes", tb_requisicoes, append = TRUE)
+  DBI::dbWriteTable(conect_bd, "tabela_requisicoes", tb_requisicoes_atualizada, append = TRUE)
   
   
   # Grava "S" na tabela '' para controlar os arquivos HTML já tratados 
@@ -1199,7 +1239,7 @@ ano <- c("2018")
 
 # Variável que define os municípios (e respectios entes municipais) serão raspados.
 # Web Scraping das entidades municipais somente do Município de Salvador (Prefeitura, Câmara e Adm. Indireta)
-cod_municipios <- c(2927408)
+cod_municipios <- c(2928703)
 
 # Web Scraping das entidades municipais dos Municípios de:
 # Santo Antõnio de Jesus, Santo Amaro, Nazaré, Porto Seguro, Ilhéus, Barreiras, São Francisco do Conde e Salvador
