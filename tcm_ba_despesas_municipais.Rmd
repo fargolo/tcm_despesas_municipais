@@ -1296,8 +1296,14 @@ executar_tidy_data()
 
 ######################################################################################
 
+# PRIORIDADES
+#!!! Colocar rotina para evitar a sobrescrição dos arquivos, colocando o tempo de geração ao final.
+#!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
+#    bem como gravar logs
+#!!! Docker do RStudio no Digital Ocean
+
+
 # MELHORIAS
-#!!! Aperfeiçoar o código e a lógica da função 'scraping_num_pags'
 #!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária???)
 #!!! Verificar e corrigir o aumento progressivo da memória RAM durante o Web Scraping
 #!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`
@@ -1309,24 +1315,22 @@ executar_tidy_data()
 #    bem como gravar logs
 #!!! Implementar uma função para identificar HTML com problemas/homissões no seu conteúdo devido a problemas
 #    no servidor do TCM ao responder as requisições
-#!!! Desenvolver Função de backup do BD
+#!!! Implementar uma Função de backup do BD
+#!!! Implementar um API com o pacote 'Plumber'
+#!!! Documentar todo o código
+#!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
+
+#!!! Implantar o Docker do RStudio no Digital Ocean
 #!!! Desenvolver o Packrat do Web Scraping
 #!!! Implantar o Docker do Rstudio com o Packrat do Web Scraping
 #!!! Finalizar o Código para que se torne automatizado com o CronR/CronTab
-#!!! Desenvolver um API com o pacote 'Plumber'
-#!!! Documentar todo o código
-#!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
+
 
 # FALTA TESTAR
 #!!! A abordagem para evitar a criação de links de requisição já existeste na 'tabela_requisicoes'
 #    ao tratar páginas de despesas que deixaram de ter menos de 20 links, após a complementação
 #    dos dados pelo ente municipal. Realizei um commit em relação a essa etapa
 
-# PRIORIDADES
-#!!! Docker do RStudio no Digital Ocean
-#!!! Documentar todo o código
-
 ######################################################################################
 
 ```
-
