@@ -442,7 +442,7 @@ scraping_tcm_entidades_ws <- function(cod_municipio, nm_municipio, log_create) {
 url_tcm_entidades_ws <- url_tcm_entidades_ws()
 
 # Cria a conexão com o SGBD;
-conect_bd <- conexao_sgbd()
+#conect_bd <- conexao_sgbd()
 
 # Scraping do código e nome dos entes municipais via Web Service;
 resultado <- paste0(url_tcm_entidades_ws, cod_municipio) %>%
@@ -715,10 +715,14 @@ DBI::dbWriteTable(conect_bd, "tabela_entidades_alvos_paginas",
 
 print("Tabela 'tabela_entidades_alvos_paginas' gerada com sucesso!")
 
-
 entidades_alvos <- DBI::dbReadTable(conect_bd, "tabela_entidades_alvos_paginas")
 
+
+print("Iniciando Web Scraping das páginas_links das entidades alvos!")
+
 purrr::pwalk(entidades_alvos, scraping_num_pags)
+
+print("Web Scraping das páginas_links das entidades alvos finalizado!")
 
 DBI::dbDisconnect(conect_bd)
 
@@ -743,6 +747,8 @@ executar_scraping_html_despesas <- function() {
   tb_requisicoes <- DBI::dbReadTable(conect_bd, "tabela_requisicoes") %>%
                     dplyr::filter(status_request_html_despesa == "N")
 
+  print("Iniciando Web Scraping dos arquivos HTML das Despesas")
+  
   purrr::pwalk(tb_requisicoes, scraping_html_despesas)
   
   print("Web Scraping dos arquivos HTML das Despesas foi concluído")
@@ -846,7 +852,7 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
   
   # Carrega a 'tabela_requisicoes' para servir de teste lógico na etapa seguinte
   tb_requisicoes_anterior <- DBI::dbReadTable(conect_bd, "tabela_requisicoes") %>%
-                             dplyr::filter(cod_entidade = cod_entidade & pagina = pagina)
+                             dplyr::filter(cod_entidade == cod_entidade & pagina == pagina)
    
   tb_requisicoes_atualizada <- tb_requisicoes %>%
                                dplyr::filter(!link_arq_html_pag %in% tb_requisicoes_anterior$link_despesa)
@@ -1279,7 +1285,7 @@ criar_tb_dcalendario(ano)
 # Função que faz o Web Scraping do código e nome dos Municípios
 criar_tb_dmunicipios()
 
-# Função que faz o Web Scraping (via Web Service) do código e nome das Entidades.
+# Função que faz o Web Scraping (via Web Service) do código e nome das Entidades e, ao fim, cria a tabela.
 criar_tb_dmunicipios_entidades()
 
 # Função que cria a tabela das entidades alvos e faz o Web Scraping das páginas
@@ -1321,7 +1327,7 @@ executar_tidy_data()
 
 # PRIORIDADES
 #!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
-#    bem como gravar logs
+#    bem como gravar logs; bem como poder utilizá-la em todas etapas de scraping do código.
 #!!! Docker do RStudio no Digital Ocean
 
 
@@ -1334,7 +1340,7 @@ executar_tidy_data()
 # IMPLEMENTAÇÕES
 #!!! Colocar rotina para evitar a sobrescrição dos arquivos, colocando o tempo de geração ao final.
 #!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
-#    bem como gravar logs
+#    bem como gravar logs; bem como poder utilizá-la em todas etapas de scraping do código.
 #!!! Implementar uma função para identificar HTML com problemas/homissões no seu conteúdo devido a problemas
 #    no servidor do TCM ao responder as requisições
 #!!! Implementar uma Função de backup do BD
