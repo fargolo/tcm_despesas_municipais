@@ -978,14 +978,14 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
       
     nome_arquivo_html <- paste0(ano, "-", cod_entidade,
                                 "-pag_", pagina, "-doc_", documento,
-                                "-val_", valor_documento, "_.html") 
+                                "-val_", valor_documento, "_.html")
 
           if (file.exists(file.path("resposta_scraping_html", nm_municipio,
-                                    gsub("/", "", nm_entidade), nome_arquivo_html)) == TRUE) {
+                                     gsub("/", "", nm_entidade), nome_arquivo_html)) == TRUE) {
     
               sufixo <- format(Sys.time(), "%H_%M_%S")
               
-              nome_arquivo_html <- parte0(nome_arquivo_html, sufixo)
+              nome_arquivo_html <- paste0(gsub("_.html", "", nome_arquivo_html), "-d_", sufixo, "_.html")
             
 }
               
@@ -1338,7 +1338,6 @@ executar_tidy_data()
 
 
 # IMPLEMENTAÇÕES
-#!!! Colocar rotina para evitar a sobrescrição dos arquivos, colocando o tempo de geração ao final.
 #!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
 #    bem como gravar logs; bem como poder utilizá-la em todas etapas de scraping do código.
 #!!! Implementar uma função para identificar HTML com problemas/homissões no seu conteúdo devido a problemas
