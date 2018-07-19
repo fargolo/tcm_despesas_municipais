@@ -583,8 +583,32 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
 
     if (nm_arq_html_pag %in% tb_pag_links$nm_arq_html_pag & gatinho_to_break == 20) {
         
+        pagina <- pagina + 1
         
-        print(paste("Fim das requisições de", nm_entidade, "na Página", pagina, "- T"))
+        pegar_paginas <- scraping_tcm_paginas %>%
+                         xml2::read_html() %>%
+                         rvest::html_nodes("#tabelaResultado") %>%
+                         xml2::write_html(file.path("resposta_scraping_links", nm_municipio,
+                                                    gsub("/", "", nm_entidade), nm_arq_html_pag))       
+          
+       # Gera o Hash do Arquivo HTML que foi gravado
+        hash_arq_html <- git2r::hashfile(file.path("resposta_scraping_links", nm_municipio,
+                                                   gsub("/", "", nm_entidade), nm_arq_html_pag)) 
+      
+        DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas 
+                                   SET pagina = :pagina
+                                   WHERE id = :id',
+                       params = list(pagina = as.character(pagina),
+                                     id = as.character(id)))
+        
+        DBI::dbExecute(conect_bd, 'UPDATE tabela_paginas_links 
+                                   SET arq_html_pag_tratado = "N"
+                                   WHERE nm_arq_html_pag = :nm_arq_html_pag',
+                       params = list(nm_arq_html_pag = as.character(nm_arq_html_pag)))
+        
+        
+        print(paste0("Scraping - ", nm_entidade, " - ", ano," - Página: ", pagina, "- Continuação"))
+          
         
         break
         
@@ -602,32 +626,20 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
        hash_arq_html <- git2r::hashfile(file.path("resposta_scraping_links", nm_municipio,
                                                    gsub("/", "", nm_entidade), nm_arq_html_pag)) 
           
-    if (nm_arq_html_pag %in% tb_pag_links$nm_arq_html_pag) {
-      
-      
-        DBI::dbExecute(conect_bd, 'UPDATE tabela_paginas_links 
-                                   SET arq_html_pag_tratado = "N"
-                                   WHERE nm_arq_html_pag = :nm_arq_html_pag',
-                       params = list(nm_arq_html_pag = as.character(nm_arq_html_pag)))
-      
-      
-      } else {
-      
-    
-         tb_paginas_links <- tibble::tibble(ano = ano,
-                                       cod_municipio = cod_municipio,
-                                       nm_municipio = nm_municipio,
-                                       cod_entidade = cod_entidade,
-                                       nm_entidade = nm_entidade,
-                                       pagina = pagina,
-                                       status_request_html_pag = "S",
-                                       log_request_html_pag = log_request,
-                                       nm_arq_html_pag = nm_arq_html_pag,
-                                       arq_html_pag_tratado = "N",
-                                       hash_arq_html_pag = hash_arq_html,
-                                       log_tratamento_arq_html_pag = "")
-         
-         DBI::dbWriteTable(conect_bd, "tabela_paginas_links", tb_paginas_links, append = TRUE)
+       tb_paginas_links <- tibble::tibble(ano = ano,
+                                     cod_municipio = cod_municipio,
+                                     nm_municipio = nm_municipio,
+                                     cod_entidade = cod_entidade,
+                                     nm_entidade = nm_entidade,
+                                     pagina = pagina,
+                                     status_request_html_pag = "S",
+                                     log_request_html_pag = log_request,
+                                     nm_arq_html_pag = nm_arq_html_pag,
+                                     arq_html_pag_tratado = "N",
+                                     hash_arq_html_pag = hash_arq_html,
+                                     log_tratamento_arq_html_pag = "")
+       
+       DBI::dbWriteTable(conect_bd, "tabela_paginas_links", tb_paginas_links, append = TRUE)
        
 }       
        
@@ -648,8 +660,8 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
        
   
 DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas 
-                          SET pagina = :pagina
-                          WHERE id = :id',
+                           SET pagina = :pagina
+                           WHERE id = :id',
               params = list(pagina = as.character(pagina),
                             id = as.character(id)))
      
@@ -657,12 +669,10 @@ DBI::dbExecute(conect_bd, 'UPDATE tabela_entidades_alvos_paginas
 }     
         
  
-}
-        
- DBI::dbDisconnect(conect_bd)
+DBI::dbDisconnect(conect_bd)
   
+
 }
-    
 
 
 
