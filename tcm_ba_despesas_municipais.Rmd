@@ -384,6 +384,9 @@ url_tcm <- url_tcm()
 #!!! Implementar configuração para testar conexão
 #!!! Se não tiver conexão, retornar pint com "Não foi identificado conexão com a internet" e
 #!!! tentar novamente depois de 5 minutos.
+
+
+
 list_tcm_municipios <- httr::GET(url_tcm) %>% 
                        xml2::read_html() %>% 
                        rvest::html_nodes("#municipio > option") 
@@ -585,7 +588,7 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
         
         print(paste0("Scraping - ", nm_entidade, " - ", ano," - Página: ", pagina, "- Continuação"))
         
-                pegar_paginas <- scraping_tcm_paginas %>%
+        pegar_paginas <- scraping_tcm_paginas %>%
                          xml2::read_html() %>%
                          rvest::html_nodes("#tabelaResultado") %>%
                          xml2::write_html(file.path("resposta_scraping_links", nm_municipio,
@@ -607,15 +610,15 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
                                    SET arq_html_pag_tratado = "N",
                                        hash_arq_html_pag = :hash_arq_html
                                    WHERE nm_arq_html_pag = :nm_arq_html_pag',
-                       params = list(nm_arq_html_pag = as.character(nm_arq_html_pag),
-                                     hash_arq_html = as.character(hash_arq_html)))
+                       params = list(hash_arq_html = as.character(hash_arq_html),
+                                     nm_arq_html_pag = as.character(nm_arq_html_pag)))
         
         break
         
         
     } else {
        
-          
+      
        pegar_paginas <- scraping_tcm_paginas %>%
                         xml2::read_html() %>%
                         rvest::html_nodes("#tabelaResultado") %>%
@@ -796,7 +799,8 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
   
   # Extrai os registros da coluna Documento da tabela
   doc_arq_html_pag <- convert_html_tab %>%
-                      .$Documento
+                      .$Documento %>%
+                      as.character()
   
   # Extrai os registros da coluna Empenho da tabela
   emp_arq_html_pag <- convert_html_tab %>%
@@ -843,7 +847,7 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
   
   # Carrega a 'tabela_requisicoes' para servir de teste lógico na etapa seguinte
   tb_requisicoes_anterior <- DBI::dbReadTable(conect_bd, "tabela_requisicoes") %>%
-                             dplyr::filter(cod_entidade = cod_entidade)
+                             dplyr::filter(cod_entidade = cod_entidade & pagina = pagina)
    
   tb_requisicoes_atualizada <- tb_requisicoes %>%
                                dplyr::filter(!link_arq_html_pag %in% tb_requisicoes_anterior$link_despesa)
@@ -895,28 +899,6 @@ scraping_html_purrr <- purrr::safely(httr::GET)
 
 scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
     
-    # Verifica se há erro de querisição 404. Se sim, grava o erro numa tabela de log no BD.
-       if (scraping_html$result$status_code == 404) {
-
-           print(paste("Erro 404 de Requisição", "-",
-                       nm_arq_html_pag, "-", documento))
-         
-           tb_request <- tibble::tibble(
-                                        log = scraping_html$result$status_code,
-                                        time = log_request,
-                                        id = id,
-                                        nm_entidade = nm_entidade,
-                                        pagina = pagina,
-                                        documento = documento,
-                                        link = link_despesa
-                                        )
-
-           DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
-
-          # Parar a iteração e pular para a próxima requisição.
-           break
-
- }
       # Verifica houve timeout. Se sim, esperar 20 segundos e tentar novamente.
       if (length(scraping_html$result) == 0) {
         
@@ -938,8 +920,9 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
            Sys.sleep(20)
         
 }
-    # Segunda tentativa. Se houver timeout novamente, pular para a próxima requisição.
-    scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
+
+# Segunda tentativa. Se houver timeout novamente, pular para a próxima requisição.
+scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
         
       if (length(scraping_html$result) == 0) {
         
@@ -960,34 +943,65 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
           
            # Parar a iteração e pular para a próxima requisição
            break
-      
+  
+}
+
+     # Verifica se há erro de querisição 404. Se sim, grava o erro numa tabela de log no BD.
+     if (scraping_html$result$status_code == 404) {
+
+         print(paste("Erro 404 de Requisição", "-",
+                     nm_arq_html_pag, "-", documento))
+       
+         tb_request <- tibble::tibble(
+                                      log = scraping_html$result$status_code,
+                                      time = log_request,
+                                      id = id,
+                                      nm_entidade = nm_entidade,
+                                      pagina = pagina,
+                                      documento = documento,
+                                      link = link_despesa
+                                      )
+
+         DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+
+        # Parar a iteração e pular para a próxima requisição.
+         break
+ 
         
-} else {
+    } else {
       
       
     nome_arquivo_html <- paste0(ano, "-", cod_entidade,
                                 "-pag_", pagina, "-doc_", documento,
-                                "-val_", valor_documento, "_.html")  
-      
+                                "-val_", valor_documento, "_.html") 
+
+          if (file.exists(file.path("resposta_scraping_html", nm_municipio,
+                                    gsub("/", "", nm_entidade), nome_arquivo_html)) == TRUE) {
+    
+              sufixo <- format(Sys.time(), "%H_%M_%S")
+              
+              nome_arquivo_html <- parte0(nome_arquivo_html, sufixo)
+            
+}
+              
     
     # scraping_html$result é proveniente da função 'scraping_html_purrr'
     pegar_html_despesas <- scraping_html$result %>%
                            xml2::read_html() %>%
                            rvest::html_node("div.col-xs-12.content.padding_content") %>%
                            xml2::write_html(file.path("resposta_scraping_html", nm_municipio,
-                                             gsub("/", "", nm_entidade), nome_arquivo_html))
+                                                      gsub("/", "", nm_entidade), nome_arquivo_html))
 
     
     # Gera o Hash do Arquivo HTML que foi gravado
     hash_arq_html_despesa <- git2r::hashfile(file.path("resposta_scraping_html", nm_municipio,
-                                             gsub("/", "", nm_entidade), nome_arquivo_html))
+                                                       gsub("/", "", nm_entidade), nome_arquivo_html))
     
 
     
     # Grava "S" na tabela 'tabela_paginas_links' para controlar os arquivos HTML já tratados 
     DBI::dbExecute(conect_bd, 'UPDATE tabela_requisicoes 
-                               SET arq_html_pag_tratado = "S",
-                                   status_request_html_despesa = "S",
+                               SET status_request_html_despesa = "S",
                                    nm_arq_html_despesa = :nome_arquivo_html,
                                    log_request_html_despesa = :log_request,
                                    hash_arq_html_despesa = :hash_arq_html_despesa
@@ -1307,7 +1321,6 @@ executar_tidy_data()
 ######################################################################################
 
 # PRIORIDADES
-#!!! Colocar rotina para evitar a sobrescrição dos arquivos, colocando o tempo de geração ao final.
 #!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
 #    bem como gravar logs
 #!!! Docker do RStudio no Digital Ocean
