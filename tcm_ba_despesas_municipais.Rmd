@@ -281,9 +281,9 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
 }
 
 
- if (DBI::dbExistsTable(conect_bd, "tabela_gastos_municipios") == FALSE) {
+ if (DBI::dbExistsTable(conect_bd, "tabela_despesas_municipais") == FALSE) {
 
-    DBI::dbExecute(conect_bd, "CREATE TABLE tabela_gastos_municipios (
+    DBI::dbExecute(conect_bd, "CREATE TABLE tabela_despesas_municipais (
                                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                     fase TEXT NOT NULL,
                                                     data_do_pagamento TEXT NOT NULL,
@@ -1078,7 +1078,7 @@ conect_bd <- conexao_sgbd()
 # Cria as tabelas no SGBD.
 criar_tabelas_bd()         
 
-DBI::dbWriteTable(conect_bd, "tabela_gastos_municipios", tb_gastos_municipais, append = TRUE)
+DBI::dbWriteTable(conect_bd, "tabela_despesas_municipais", tb_gastos_municipais, append = TRUE)
 
 
 # Grava "S" na tabela 'tabela_requisicoes' para controlar os arquivos HTML já tratados 
@@ -1104,12 +1104,9 @@ executar_tidy_data <- function() {
 
   # Cria a conexão com o SGBD.
   conect_bd <- conexao_sgbd()
+
   
-  # Cria as tabelas no SGBD.
-  criar_tabelas_bd()
-  
-  
-  tb_gastos_municipios <- DBI::dbReadTable(conect_bd, "tabela_gastos_municipios") %>%
+  tb_gastos_municipios <- DBI::dbReadTable(conect_bd, "tabela_despesas_municipais") %>%
                           tibble::as.tibble() %>%
                           tidyr::separate(col = favorecido,
                                           into = c("cod_favorecido",
@@ -1189,10 +1186,12 @@ executar_tidy_data <- function() {
                           dplyr::mutate_all(stringr::str_to_upper) %>%
                           dplyr::mutate_all(stringr::str_trim)
 
-DBI::dbWriteTable(conect_bd, "tabela_gastos_municipais_arrumados", tb_gastos_municipios, overwrite = TRUE)
+DBI::dbWriteTable(conect_bd, "tabela_despesas_municipais_tidy_data", tb_gastos_municipios, overwrite = TRUE)
   
-readr::write_delim(tb_gastos_municipios, file.path("bd_sqlite", "tabela_gastos_municipais_arrumados.csv"),
+readr::write_delim(tb_gastos_municipios, file.path("bd_sqlite", "tabela_despesas_municipais_tidy_data.csv"),
                    delim = ";")
+
+print("Todos os dados foram colocados no padrão Tidy Data")
 
 DBI::dbDisconnect(conect_bd)
   
@@ -1297,12 +1296,6 @@ executar_tidy_data()
 
 ######################################################################################
 
-# BUGs
-#!!! Evitar duplicidade de dados na hora de raspar os HTMLs das páginas das entidades.
-#    Verificar se a duplicidade de dados deve ser abordada no Scraping ou na etapa do Parser
-
-
-
 # MELHORIAS
 #!!! Aperfeiçoar o código e a lógica da função 'scraping_num_pags'
 #!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária???)
@@ -1324,10 +1317,12 @@ executar_tidy_data()
 #!!! Documentar todo o código
 #!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
 
+# FALTA TESTAR
+#!!! A abordagem para evitar a criação de links de requisição já existeste na 'tabela_requisicoes'
+#    ao tratar páginas de despesas que deixaram de ter menos de 20 links, após a complementação
+#    dos dados pelo ente municipal. Realizei um commit em relação a essa etapa
 
-#Prioridades
-#!!! Evitar duplicidade de dados na hora de raspar os HTMLs das páginas das entidades.
-#    Verificar se a duplicidade de dados deve ser abordada no Scraping ou na etapa do Parser
+# PRIORIDADES
 #!!! Docker do RStudio no Digital Ocean
 #!!! Documentar todo o código
 
