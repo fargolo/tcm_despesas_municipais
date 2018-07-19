@@ -608,7 +608,7 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
                                        hash_arq_html_pag = :hash_arq_html
                                    WHERE nm_arq_html_pag = :nm_arq_html_pag',
                        params = list(nm_arq_html_pag = as.character(nm_arq_html_pag),
-                                     as.character(hash_arq_html)))
+                                     hash_arq_html = as.character(hash_arq_html)))
         
         break
         
