@@ -340,7 +340,7 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
 
 4 - Função que cria e atualiza a tabela dCalendario no BD
 
-```{r criar_tab_dcalendario, eval=FALSE}
+```{r criar_tab_dcalendario}
 
 # Criar a função que gera a tabela com a relação de meses e ano para o Web Scraping;
 criar_tb_dcalendario <- function(data_inicial) {
@@ -1225,7 +1225,7 @@ criar_tb_dmunicipios_entidades()
 executar_scraping_num_pags(ano, cod_municipios)
 
 # Função cria a tabela de requisições e faz o Web Scraping das páginas HTML que contêm
-# os dados das despesas
+# os dados das despesas. #OBS: O tempo de resposta do TCM está entre 10 a 30 segundos
 executar_scraping_html_despesas()
 
 # Função que faz o parser dos HTMLs das depesas e o Data Wrangling dos HTMLs
@@ -1262,6 +1262,7 @@ executar_tidy_data()
 #    Verificar se a duplicidade de dados deve ser abordada no Scraping ou na etapa do Parser
 
 
+
 # MELHORIAS
 #!!! Aperfeiçoar o código e a lógica da função 'scraping_num_pags'
 #!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária???)
@@ -1270,6 +1271,7 @@ executar_tidy_data()
 
 
 # IMPLEMENTAÇÕES
+#!!! Colocar rotina para evitar a sobrescrição dos arquivos, colocando o tempo de geração ao final.
 #!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
 #    bem como gravar logs
 #!!! Implementar uma função para identificar HTML com problemas/homissões no seu conteúdo devido a problemas
