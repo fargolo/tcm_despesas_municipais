@@ -1,5 +1,5 @@
 ---
-title: "Web Scraping - Gastos Públicos dos Municípios do Estado da Bahia"
+title: "Web Scraping - Despesas dos Municípios do Estado da Bahia"
 author: "George Santiago"
 date: "18 de jlnho de 2018"
 output: html_document
@@ -381,11 +381,6 @@ scraping_tcm_municipios <- function() {
 # Scraping do código e nome dos municípios, e por meio do qual será feio o scraping
 url_tcm <- url_tcm()
 
-#!!! Implementar configuração para testar conexão
-#!!! Se não tiver conexão, retornar pint com "Não foi identificado conexão com a internet" e
-#!!! tentar novamente depois de 5 minutos.
-
-
 
 list_tcm_municipios <- httr::GET(url_tcm) %>% 
                        xml2::read_html() %>% 
@@ -417,11 +412,11 @@ criar_tb_dmunicipios <- function() {
 conect_bd <- conexao_sgbd()
   
 # Executa o scraping que captura os códigos e nomes dos municípios
-tabela_tcm_dmunicipios <- scraping_tcm_municipios()
+tb_tcm_dmunicipios <- scraping_tcm_municipios()
 
 
-#!!! Colocar uma condição IF para identificar se a tabela já existe
-DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios", tabela_tcm_dmunicipios, overwrite = TRUE)
+DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios", tb_tcm_dmunicipios, overwrite = TRUE)
+
 
 print("A tabela `tabela_tcm_dmunicipios` foi criado com sucesso no BD")
 
@@ -441,9 +436,6 @@ scraping_tcm_entidades_ws <- function(cod_municipio, nm_municipio, log_create) {
 # URL do Web Service do TCM-Ba;
 url_tcm_entidades_ws <- url_tcm_entidades_ws()
 
-# Cria a conexão com o SGBD;
-#conect_bd <- conexao_sgbd()
-
 # Scraping do código e nome dos entes municipais via Web Service;
 resultado <- paste0(url_tcm_entidades_ws, cod_municipio) %>%
              httr::GET() %>%
@@ -461,17 +453,10 @@ tratar_resultado <- resultado %>%
                     dplyr::select(cod_municipio, nm_municipio, cod_entidade, nm_entidade, log_create)
 
 
-#!!! Incluir rotina para evitar duplicidade de dados
-#DBI::dbWriteTable(conect_bd, "tabela_tcm_dmunicipios_entidades", tratar_resultado, append = TRUE)
-
-
-
 # Print para visualizar a progressão do scraping
-progresso <- paste("Scraping:", tratar_resultado$cod_municipio, "-", tratar_resultado$nm_municipio,
-                   "-", tratar_resultado$cod_entidade, "-", tratar_resultado$nm_entidade) %>%
-             print()
+print(paste("Scraping:", tratar_resultado$cod_municipio, "-", tratar_resultado$nm_municipio,
+            "-", tratar_resultado$cod_entidade, "-", tratar_resultado$nm_entidade))
 
-#DBI::dbDisconnect(conect_bd)
 
 # Função return() para que o output seja o dataframe que está na variável 'tratar_resultado';
 return(tratar_resultado)
@@ -535,10 +520,7 @@ scraping_num_pags <- function(id, ano, cod_municipio, nm_municipio, cod_entidade
                         "&favorecido=&entidade=", cod_entidade,
                         "&orgao=&orcamentaria=&despesa=&recurso=&desp=P&dtPeriodo1=&dtPeriodo2=")
         
-      # !!! Criar função para tratar possíveis erros de requisição
-      # !!! E grava o registro do erro na coluna 'status_request_html_pag' da tabbela tabela 'tabela_paginas_links'
-      # !!! Criar rotina para tratar o timeout
-      # !!! if timeout positivo, então pare e tente novamente após 30 segundos
+
       scraping_tcm_paginas <- httr::GET(site_tcm)
       
       
@@ -907,8 +889,8 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
       # Verifica houve timeout. Se sim, esperar 20 segundos e tentar novamente.
       if (length(scraping_html$result) == 0) {
         
-          print(paste("Timeout estrapolou o tempo", "-", nm_arq_html_pag,
-                      "-", documento, "primeira tentativa"))
+          print(paste("### Timeout estrapolou o tempo", "-", nm_arq_html_pag,
+                      "- doc:", documento, "- primeira tentativa ###"))
         
            tb_request <- tibble::tibble(
                                         log = "timeout",
@@ -931,9 +913,7 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
         
       if (length(scraping_html$result) == 0) {
         
-          print(paste("Timeout estrapolou o tempo", "-", nm_arq_html_pag,
-              "-", documento, "segunda tentativa"))
-        
+
           tb_request <- tibble::tibble(
                                       log = "timeout",
                                       time = log_request,
@@ -947,16 +927,15 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
            DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
           
            # Parar a iteração e pular para a próxima requisição
-           break
+           return(print(paste("### Timeout estrapolou o tempo", "-", nm_arq_html_pag,
+              "- doc:", documento, "- segunda tentativa ###")))
   
 }
 
      # Verifica se há erro de querisição 404. Se sim, grava o erro numa tabela de log no BD.
      if (scraping_html$result$status_code == 404) {
 
-         print(paste("Erro 404 de Requisição", "-",
-                     nm_arq_html_pag, "-", documento))
-       
+
          tb_request <- tibble::tibble(
                                       log = scraping_html$result$status_code,
                                       time = log_request,
@@ -970,7 +949,8 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
          DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
 
         # Parar a iteração e pular para a próxima requisição.
-         break
+         return(print(paste("### Erro 404 de Requisição", "-",
+                     nm_arq_html_pag, "- doc:", documento, "###")))
  
         
     } else {
@@ -1053,50 +1033,50 @@ pegar_dados_html <- parser_arq_html %>%
                     stringr::str_trim()
 
   
-tb_gastos_municipais <- tibble::tibble(
-                                      fase = pegar_dados_html[1],
-                                      data_do_pagamento = pegar_dados_html[2],
-                                      valor_do_pagamento = pegar_dados_html[3],
-                                      documento = pegar_dados_html[4],
-                                      empenho = pegar_dados_html[5],
-                                      data_empenho = pegar_dados_html[6],
-                                      tipo_de_empenho = pegar_dados_html[7],
-                                      favorecido = pegar_dados_html[8],
-                                      valor_do_empenho = pegar_dados_html[9],
-                                      valor_das_retencoes = pegar_dados_html[10],
-                                      restos_a_pagar = pegar_dados_html[11],
-                                      conta_bancaria = pegar_dados_html[12],
-                                      fonte_de_recurso_tcm = pegar_dados_html[13],
-                                      fonte_de_recurso_gestor = pegar_dados_html[14],
-                                      tipo_de_documento = pegar_dados_html[15],
-                                      # Enriqueci a tabela com o dado do código do município
-                                      cod_municipio = cod_municipio,
-                                      municipio = pegar_dados_html[16],
-                                      # Enriqueci a tabela com o dado do código da entidade municipal
-                                      cod_entidade = cod_entidade,
-                                      entidade = pegar_dados_html[17],
-                                      poder = pegar_dados_html[18],
-                                      orgao = pegar_dados_html[19],
-                                      unidade_orcamentaria = pegar_dados_html[20],
-                                      funcao = pegar_dados_html[21],
-                                      subfuncao = pegar_dados_html[22],
-                                      programa = pegar_dados_html[23],
-                                      tipo_acao = pegar_dados_html[24],
-                                      acao = pegar_dados_html[25],
-                                      natureza_da_despesa_tcm = pegar_dados_html[26],
-                                      natureza_da_despesa_gestor = pegar_dados_html[27],
-                                      fonte_de_recurso_tcm_2 = pegar_dados_html[28],
-                                      fonte_de_recurso_gestor_2 = pegar_dados_html[29],
-                                      licitacao = pegar_dados_html[30],
-                                      Dispensa_Inexigibilidade = pegar_dados_html[31],
-                                      contrato = pegar_dados_html[32],
-                                      declaracao = pegar_dados_html[33],
-                                      foreign_key = id,
-                                      nm_arq_html_despesa = nm_arq_html_despesa,
-                                      hash_arq_html_despesa = hash_arq_html_despesa,
-                                      log_tratamento_arq_html_despesa = log_tratamento_arq_html_despesa,
-                                      link = link_despesa
-                                      )
+tb_despesas_municipais <- tibble::tibble(
+                                        fase = pegar_dados_html[1],
+                                        data_do_pagamento = pegar_dados_html[2],
+                                        valor_do_pagamento = pegar_dados_html[3],
+                                        documento = pegar_dados_html[4],
+                                        empenho = pegar_dados_html[5],
+                                        data_empenho = pegar_dados_html[6],
+                                        tipo_de_empenho = pegar_dados_html[7],
+                                        favorecido = pegar_dados_html[8],
+                                        valor_do_empenho = pegar_dados_html[9],
+                                        valor_das_retencoes = pegar_dados_html[10],
+                                        restos_a_pagar = pegar_dados_html[11],
+                                        conta_bancaria = pegar_dados_html[12],
+                                        fonte_de_recurso_tcm = pegar_dados_html[13],
+                                        fonte_de_recurso_gestor = pegar_dados_html[14],
+                                        tipo_de_documento = pegar_dados_html[15],
+                                        # Enriqueci a tabela com o dado do código do município
+                                        cod_municipio = cod_municipio,
+                                        municipio = pegar_dados_html[16],
+                                        # Enriqueci a tabela com o dado do código da entidade municipal
+                                        cod_entidade = cod_entidade,
+                                        entidade = pegar_dados_html[17],
+                                        poder = pegar_dados_html[18],
+                                        orgao = pegar_dados_html[19],
+                                        unidade_orcamentaria = pegar_dados_html[20],
+                                        funcao = pegar_dados_html[21],
+                                        subfuncao = pegar_dados_html[22],
+                                        programa = pegar_dados_html[23],
+                                        tipo_acao = pegar_dados_html[24],
+                                        acao = pegar_dados_html[25],
+                                        natureza_da_despesa_tcm = pegar_dados_html[26],
+                                        natureza_da_despesa_gestor = pegar_dados_html[27],
+                                        fonte_de_recurso_tcm_2 = pegar_dados_html[28],
+                                        fonte_de_recurso_gestor_2 = pegar_dados_html[29],
+                                        licitacao = pegar_dados_html[30],
+                                        Dispensa_Inexigibilidade = pegar_dados_html[31],
+                                        contrato = pegar_dados_html[32],
+                                        declaracao = pegar_dados_html[33],
+                                        foreign_key = id,
+                                        nm_arq_html_despesa = nm_arq_html_despesa,
+                                        hash_arq_html_despesa = hash_arq_html_despesa,
+                                        log_tratamento_arq_html_despesa = log_tratamento_arq_html_despesa,
+                                        link = link_despesa
+                                        )
                                       
 
 log_request <- log_data_hora()
@@ -1107,7 +1087,7 @@ conect_bd <- conexao_sgbd()
 # Cria as tabelas no SGBD.
 criar_tabelas_bd()         
 
-DBI::dbWriteTable(conect_bd, "tabela_despesas_municipais", tb_gastos_municipais, append = TRUE)
+DBI::dbWriteTable(conect_bd, "tabela_despesas_municipais", tb_despesas_municipais, append = TRUE)
 
 
 # Grava "S" na tabela 'tabela_requisicoes' para controlar os arquivos HTML já tratados 
@@ -1135,7 +1115,7 @@ executar_tidy_data <- function() {
   conect_bd <- conexao_sgbd()
 
   
-  tb_gastos_municipios <- DBI::dbReadTable(conect_bd, "tabela_despesas_municipais") %>%
+  tb_despesas_municipios <- DBI::dbReadTable(conect_bd, "tabela_despesas_municipais") %>%
                           tibble::as.tibble() %>%
                           tidyr::separate(col = favorecido,
                                           into = c("cod_favorecido",
@@ -1215,9 +1195,9 @@ executar_tidy_data <- function() {
                           dplyr::mutate_all(stringr::str_to_upper) %>%
                           dplyr::mutate_all(stringr::str_trim)
 
-DBI::dbWriteTable(conect_bd, "tabela_despesas_municipais_tidy_data", tb_gastos_municipios, overwrite = TRUE)
+DBI::dbWriteTable(conect_bd, "tabela_despesas_municipais_tidy_data", tb_despesas_municipios, overwrite = TRUE)
   
-readr::write_delim(tb_gastos_municipios, file.path("bd_sqlite", "tabela_despesas_municipais_tidy_data.csv"),
+readr::write_delim(tb_despesas_municipios, file.path("bd_sqlite", "tabela_despesas_municipais_tidy_data.csv"),
                    delim = ";")
 
 print("Todos os dados foram colocados no padrão Tidy Data")
@@ -1326,26 +1306,29 @@ executar_tidy_data()
 ######################################################################################
 
 # PRIORIDADES
+#!!! Docker do RStudio no Digital Ocean
 #!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
 #    bem como gravar logs; bem como poder utilizá-la em todas etapas de scraping do código.
-#!!! Docker do RStudio no Digital Ocean
+
 
 
 # MELHORIAS
 #!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária???)
-#!!! Verificar e corrigir o aumento progressivo da memória RAM durante o Web Scraping
 #!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`
-
+#!!! Atribuir cor aos prints
+#!!! Analisar os comandos break, next ou return dentro da função purrr
 
 # IMPLEMENTAÇÕES
 #!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
 #    bem como gravar logs; bem como poder utilizá-la em todas etapas de scraping do código.
 #!!! Implementar uma função para identificar HTML com problemas/homissões no seu conteúdo devido a problemas
 #    no servidor do TCM ao responder as requisições
+#!!! Na função 'executar_tidy_data' especificar a saída do ID como numérico. E não torna maiúscula
+#    as variáveis "nm_arq_html_despesa", hash_arq_html_despesa e link
 #!!! Implementar uma Função de backup do BD
-#!!! Implementar um API com o pacote 'Plumber'
 #!!! Documentar todo o código
 #!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
+#!!! Implementar um API com o pacote 'Plumber'
 
 #!!! Implantar o Docker do RStudio no Digital Ocean
 #!!! Desenvolver o Packrat do Web Scraping
