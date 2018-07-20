@@ -733,9 +733,26 @@ executar_scraping_html_despesas <- function() {
   
   purrr::pwalk(tb_requisicoes, scraping_html_despesas)
   
-  print("Web Scraping dos arquivos HTML das Despesas foi concluído")
+  print("O Web Scraping dos arquivos HTML das Despesas foi concluído")
   
-  DBI::dbDisconnect(conect_bd)
+  
+  # Rotina para executar uma segunda tentativa do Scraping
+  # para requisitar as URL com timeout ou 404, ou os HTML com inconsistência 
+  tb_requisicoes_2 <- DBI::dbReadTable(conect_bd, "tabela_requisicoes") %>%
+                      dplyr::filter(status_request_html_despesa == "N")
+  
+  if (nrow(tb_requisicoes_2) > 0){
+    
+    print("Segunda tentativa para requisitar as URL com timeout ou 404, ou os HTML com inconsistência")
+    
+    purrr::pwalk(tb_requisicoes_2, scraping_html_despesas)
+  
+    print(" A Segunda tentativa do Web Scraping dos arquivos HTML das Despesas foi concluída")
+    
+    
+}
+  
+DBI::dbDisconnect(conect_bd)
 
 }
 
@@ -837,6 +854,7 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
                              dplyr::filter(cod_entidade == cod_entidade & pagina == pagina)
    
   tb_requisicoes_atualizada <- tb_requisicoes %>%
+  # Exclui as URL iguais que já existiam na tabela, proveniente de HTML com informações parciais
                                dplyr::filter(!link_arq_html_pag %in% tb_requisicoes_anterior$link_despesa)
   
   
@@ -886,6 +904,7 @@ scraping_html_purrr <- purrr::safely(httr::GET)
 
 scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
     
+
   # Verifica houve timeout. Se sim, esperar 20 segundos e tentar novamente.
 if (length(scraping_html$result) == 0) {
   
@@ -902,8 +921,9 @@ if (length(scraping_html$result) == 0) {
                                   link = link_despesa
                                   )
 
+   
      DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
-    
+     
      Sys.sleep(20)
         
 }
@@ -926,14 +946,16 @@ if (length(scraping_html$result) == 0) {
                                 )
 
      DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
-    
+
+     DBI::dbDisconnect(conect_bd)
+     
      # Parar a iteração e pular para a próxima requisição
      return(print(paste("### Timeout estrapolou o tempo", "-", nm_arq_html_pag,
-        "- doc:", documento, "- segunda tentativa ###")))
+                        "- doc:", documento, "- segunda tentativa ###")))
   
 }
 
- # Verifica se há erro de querisição 404. Se sim, grava o erro numa tabela de log no BD.
+# Verifica se há erro de querisição 404. Se sim, grava o erro numa tabela de log no BD.
 if (scraping_html$result$status_code == 404) {
 
 
@@ -948,43 +970,49 @@ if (scraping_html$result$status_code == 404) {
                                 )
 
    DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+   
+   DBI::dbDisconnect(conect_bd)
 
-  # Parar a iteração e pular para a próxima requisição.
+   # Parar a iteração e pular para a próxima requisição.
    return(print(paste("### Erro 404 de Requisição", "-",
-               nm_arq_html_pag, "- doc:", documento, "###")))
+                       nm_arq_html_pag, "- doc:", documento, "###")))
  
         
 }
 
 
-  # Realiza um teste no HTML para saber se os dados estão completos, ou se houve erro durante a resposta do TCM
-  # scraping_html$result é proveniente da função 'scraping_html_purrr'
+# Realiza um teste no HTML para saber se os dados estão completos, ou se houve erro durante a resposta do TCM
+# scraping_html$result é proveniente da função 'scraping_html_purrr'
   teste_html_despesas <- scraping_html$result %>%
                          xml2::read_html() %>%
                          rvest::html_nodes("label+ span") %>%
                          rvest::html_text() %>%
                          stringr::str_trim()
-    
+  teste_1 <- "-"
+  
 
-if (teste_html_despesas[8] == "-" | teste_html_despesas[13] == "-") {
+if (teste_html_despesas[8] == teste_1) {
+  # Retirei o critério 'teste_html_despesas[13] == teste_1', pois o arquivo está com 
+  # a informação '-' na base de dados do TCM
   
-  
-             tb_request <- tibble::tibble(
-                                log = "HTML de despesa incompleto",
-                                time = log_request,
-                                id = id,
-                                nm_entidade = nm_entidade,
-                                pagina = pagina,
-                                documento = documento,
-                                link = link_despesa
-                                )
+    tb_request <- tibble::tibble(
+                                 log = "HTML de despesa incompleto",
+                                 time = log_request,
+                                 id = id,
+                                 nm_entidade = nm_entidade,
+                                 pagina = pagina,
+                                 documento = documento,
+                                 link = link_despesa
+                                 )
 
    DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+   
+   DBI::dbDisconnect(conect_bd)
 
-   return(print("### O HTML não está com informações completas. Tentar mais tarde. ###"))
+   return(print(paste("### O HTML", nm_arq_html_pag, "- doc:", documento, "não está com informações completas. Tentar mais tarde. ###")))
    
      
-  # Se tudo estiver OK com a requisição e com o arquivo HTML, então executa esse bloco de código.
+# Se tudo estiver OK com a requisição e com o arquivo HTML, então executa esse bloco de código.
   } else {
       
   # Salva o arquivo HTML no HD para ser tratado por outra função    
@@ -1028,13 +1056,13 @@ if (teste_html_despesas[8] == "-" | teste_html_despesas[13] == "-") {
                                  hash_arq_html_despesa = as.character(hash_arq_html_despesa),
                                  id = as.character(id)))
     
-
+    DBI::dbDisconnect(conect_bd)
+    
     print(paste0("Scraping - ", "Doc: ",documento, " - Pág: ", pagina,
                  " - Ano: ",ano," - " ,nm_entidade))
 
 }
 
-    DBI::dbDisconnect(conect_bd)
     
 }
 
