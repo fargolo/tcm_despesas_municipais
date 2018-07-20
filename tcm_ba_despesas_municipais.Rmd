@@ -1413,35 +1413,27 @@ executar_tidy_data()
 
 ######################################################################################
 
-# BUG
-# Identificar por que a tabela_entidades_alvo_paginas não está criando as paginações
-# ao se acrescentar novos anos ex: "2017". O problema deve estar na função
-# 'executar_scraping_num_pags'
-
-
 # PRIORIDADES
+#!!! Identificar por que a tabela_entidades_alvo_paginas não está criando as paginações
+#    ao se acrescentar novos anos ex: "2017". O problema deve estar na função
+#    'executar_scraping_num_pags'
 #!!! Docker do RStudio no Digital Ocean
-#!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
-#    bem como gravar logs; bem como poder utilizá-la em todas etapas de scraping do código.
 
+
+# BUG
+#!!! Identificar por que a tabela_entidades_alvo_paginas não está criando as paginações
+#    ao se acrescentar novos anos ex: "2017". O problema deve estar na função
+#    'executar_scraping_num_pags'
 
 
 # MELHORIAS
 #!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária???)
 #!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`
 #!!! Atribuir cor aos prints
-#!!! Analisar os comandos break, next ou return dentro da função purrr
+
 
 # IMPLEMENTAÇÕES
-#!!! Generalizar a função scraping_html_purrr para realizar requisições e tratar erros de 404, Dos e timeout,
-#    bem como gravar logs; bem como poder utilizá-la em todas etapas de scraping do código.
-#!!! Implementar uma função para identificar HTML com problemas/homissões no seu conteúdo devido a problemas
-#    no servidor do TCM ao responder as requisições
-
-#!!! Na função 'executar_tidy_data' especificar a saída do ID como numérico. E não torna maiúscula
-#    as variáveis "nm_arq_html_despesa", hash_arq_html_despesa e link
-#!!! Ajustar a data em 'pagamento' para o padrão inglês na função tidy_data
-#!!! Terntar converter o encoding para UFT-8
+#!!! Na função 'executar_tidy_data' especificar a saída do ID como numérico.
 
 #!!! Implementar uma Função de backup do BD
 #!!! Documentar todo o código
