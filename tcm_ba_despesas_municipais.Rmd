@@ -303,7 +303,7 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
                                                     cod_municipio TEXT NOT NULL,
                                                     municipio TEXT NOT NULL,
                                                     cod_entidade TEXT NOT NULL,
-                                                    entidade TEXT NOT NULL,
+                                                    nm_entidade TEXT NOT NULL,
                                                     poder TEXT NOT NULL,
                                                     orgao TEXT NOT NULL,
                                                     unidade_orcamentaria TEXT NOT NULL,
@@ -1121,7 +1121,7 @@ tb_despesas_municipais <- tibble::tibble(
                                         municipio = pegar_dados_html[16],
                                         # Enriqueci a tabela com o dado do código da entidade municipal
                                         cod_entidade = cod_entidade,
-                                        entidade = pegar_dados_html[17],
+                                        nm_entidade = pegar_dados_html[17],
                                         poder = pegar_dados_html[18],
                                         orgao = pegar_dados_html[19],
                                         unidade_orcamentaria = pegar_dados_html[20],
