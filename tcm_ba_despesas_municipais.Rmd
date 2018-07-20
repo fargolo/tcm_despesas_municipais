@@ -1058,8 +1058,8 @@ if (teste_html_despesas[8] == teste_1) {
     
     DBI::dbDisconnect(conect_bd)
     
-    print(paste0("Scraping - ", "Doc: ",documento, " - Pág: ", pagina,
-                 " - Ano: ",ano," - " ,nm_entidade))
+    print(paste("Scraping -", "Doc:",documento, "- Pág: ", pagina,
+                 "- Ano: ", ano, "- Valor:", valor_documento, "-", nm_entidade))
 
 }
 
@@ -1184,88 +1184,90 @@ executar_tidy_data <- function() {
 
   
   tb_despesas_municipios <- DBI::dbReadTable(conect_bd, "tabela_despesas_municipais") %>%
-                          tibble::as.tibble() %>%
-                          tidyr::separate(col = favorecido,
-                                          into = c("cod_favorecido",
-                                                   "nm_favorecido"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>%    
-                          tidyr::separate(col = fonte_de_recurso_tcm,
-                                          into = c("cod_fonte_de_recurso_tcm",
-                                                   "nm_fonte_de_recurso_tcm"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>%
-                          tidyr::separate(col = fonte_de_recurso_gestor,
-                                          into = c("cod_fonte_de_recurso_gestor",
-                                                   "nm_fonte_de_recurso_gestor"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>%
-                          tidyr::separate(col = orgao,
-                                          into = c("cod_orgao",
-                                                   "nm_orgao"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>%
-                          tidyr::separate(col = unidade_orcamentaria,
-                                          into = c("cod_unidade_orcamentaria",
-                                                   "nm_unidade_orcamentaria"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>%
-                          tidyr::separate(col = funcao,
-                                          into = c("cod_funcao",
-                                                   "nm_funcao"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>% 
-                          tidyr::separate(col = subfuncao,
-                                          into = c("cod_subfuncao",
-                                                   "nm_subfuncao"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>% 
-                          tidyr::separate(col = programa,
-                                          into = c("cod_programa",
-                                                   "nm_programa"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>% 
-                          tidyr::separate(col = tipo_acao,
-                                          into = c("cod_tipo_acao",
-                                                   "nm_tipo_acao"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>%
-                          tidyr::separate(col = acao,
-                                          into = c("cod_acao",
-                                                   "nm_acao"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>% 
-                          tidyr::separate(col = natureza_da_despesa_tcm,
-                                          into = c("cod_natureza_da_despesa_tcm",
-                                                   "nm_natureza_da_despesa_tcm"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>%
-                          tidyr::separate(col = natureza_da_despesa_gestor,
-                                          into = c("cod_natureza_da_despesa_gestor",
-                                                   "nm_natureza_da_despesa_gestor"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>%
-                          tidyr::separate(col = fonte_de_recurso_tcm_2,
-                                          into = c("cod_fonte_de_recurso_tcm_2",
-                                                   "nm_fonte_de_recurso_tcm_2"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>%
-                          tidyr::separate(col = fonte_de_recurso_gestor_2,
-                                          into = c("cod_fonte_de_recurso_gestor_2",
-                                                   "nm_fonte_de_recurso_gestor_2"),
-                                          sep = " - ",
-                                          remove = TRUE, extra = "merge") %>%
-                          dplyr::mutate(valor_das_retencoes = stringr::str_replace(valor_das_retencoes, "-", "0")) %>%
-                          dplyr::mutate(valor_das_retencoes = valor_monetario(valor_das_retencoes)) %>%
-                          dplyr::mutate(valor_do_pagamento = valor_monetario(valor_do_pagamento)) %>%
-                          dplyr::mutate(valor_do_empenho = valor_monetario(valor_do_empenho)) %>%
-                          dplyr::mutate_all(funs(stringi::stri_trans_general(., "latin-ascii"))) %>%
-                          #!!! Converter a data para o padrão inglês
-                          dplyr::mutate_all(stringr::str_to_upper) %>%
-                          #!!! Colocar as últimas 4 colunas em letra minúscula
-                          dplyr::mutate_all(stringr::str_trim)
-                          #!!! Converter o encodinf para UTF-8
-                          
+                            tibble::as.tibble() %>%
+                            tidyr::separate(col = favorecido,
+                                            into = c("cod_favorecido",
+                                                     "nm_favorecido"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>%    
+                            tidyr::separate(col = fonte_de_recurso_tcm,
+                                            into = c("cod_fonte_de_recurso_tcm",
+                                                     "nm_fonte_de_recurso_tcm"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>%
+                            tidyr::separate(col = fonte_de_recurso_gestor,
+                                            into = c("cod_fonte_de_recurso_gestor",
+                                                     "nm_fonte_de_recurso_gestor"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>%
+                            tidyr::separate(col = orgao,
+                                            into = c("cod_orgao",
+                                                     "nm_orgao"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>%
+                            tidyr::separate(col = unidade_orcamentaria,
+                                            into = c("cod_unidade_orcamentaria",
+                                                     "nm_unidade_orcamentaria"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>%
+                            tidyr::separate(col = funcao,
+                                            into = c("cod_funcao",
+                                                     "nm_funcao"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>% 
+                            tidyr::separate(col = subfuncao,
+                                            into = c("cod_subfuncao",
+                                                     "nm_subfuncao"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>% 
+                            tidyr::separate(col = programa,
+                                            into = c("cod_programa",
+                                                     "nm_programa"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>% 
+                            tidyr::separate(col = tipo_acao,
+                                            into = c("cod_tipo_acao",
+                                                     "nm_tipo_acao"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>%
+                            tidyr::separate(col = acao,
+                                            into = c("cod_acao",
+                                                     "nm_acao"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>% 
+                            tidyr::separate(col = natureza_da_despesa_tcm,
+                                            into = c("cod_natureza_da_despesa_tcm",
+                                                     "nm_natureza_da_despesa_tcm"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>%
+                            tidyr::separate(col = natureza_da_despesa_gestor,
+                                            into = c("cod_natureza_da_despesa_gestor",
+                                                     "nm_natureza_da_despesa_gestor"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>%
+                            tidyr::separate(col = fonte_de_recurso_tcm_2,
+                                            into = c("cod_fonte_de_recurso_tcm_2",
+                                                     "nm_fonte_de_recurso_tcm_2"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>%
+                            tidyr::separate(col = fonte_de_recurso_gestor_2,
+                                            into = c("cod_fonte_de_recurso_gestor_2",
+                                                     "nm_fonte_de_recurso_gestor_2"),
+                                            sep = " - ",
+                                            remove = TRUE, extra = "merge") %>%
+                            dplyr::mutate(valor_das_retencoes = stringr::str_replace(valor_das_retencoes, "-", "0")) %>%
+                            dplyr::mutate(valor_das_retencoes = valor_monetario(valor_das_retencoes)) %>%
+                            dplyr::mutate(valor_do_pagamento = valor_monetario(valor_do_pagamento)) %>%
+                            dplyr::mutate(valor_do_empenho = valor_monetario(valor_do_empenho)) %>%
+                            dplyr::mutate(data_do_pagamento = lubridate::dmy(data_do_pagamento)) %>%
+                            dplyr::mutate(data_empenho = lubridate::dmy(data_empenho)) %>%
+                            dplyr::mutate_all(funs(stringi::stri_trans_general(., "latin-ascii"))) %>%
+                            dplyr::mutate_all(stringr::str_to_upper) %>%
+                            dplyr::mutate(link = stringr::str_to_lower(link)) %>%
+                            dplyr::mutate(nm_arq_html_despesa = stringr::str_to_lower(nm_arq_html_despesa)) %>%
+                            dplyr::mutate(hash_arq_html_despesa = stringr::str_to_lower(hash_arq_html_despesa)) %>%
+                            dplyr::mutate_all(stringr::str_trim)
+
 
 DBI::dbWriteTable(conect_bd, "tabela_despesas_municipais_tidy_data", tb_despesas_municipios, overwrite = TRUE)
   
