@@ -1256,6 +1256,7 @@ executar_tidy_data <- function() {
                                             sep = " - ",
                                             remove = TRUE, extra = "merge") %>%
                             dplyr::mutate(valor_das_retencoes = stringr::str_replace(valor_das_retencoes, "-", "0")) %>%
+                            dplyr::mutate(tipo_de_documento = stringr::str_replace(tipo_de_documento, "[º]", "°")) %>%
                             dplyr::mutate(valor_das_retencoes = valor_monetario(valor_das_retencoes)) %>%
                             dplyr::mutate(valor_do_pagamento = valor_monetario(valor_do_pagamento)) %>%
                             dplyr::mutate(valor_do_empenho = valor_monetario(valor_do_empenho)) %>%
@@ -1270,11 +1271,26 @@ executar_tidy_data <- function() {
 
 
 DBI::dbWriteTable(conect_bd, "tabela_despesas_municipais_tidy_data", tb_despesas_municipios, overwrite = TRUE)
-  
+
+print("Todos os dados foram colocados no padrão Tidy Data no BD")
+
+
+tb_despesas_municipios_BR <- tb_despesas_municipios %>%
+                             dplyr::mutate(valor_das_retencoes = stringr::str_replace(valor_das_retencoes, "[.]", ",")) %>%
+                             dplyr::mutate(valor_do_pagamento = stringr::str_replace(valor_do_pagamento, "[.]", ",")) %>%
+                             dplyr::mutate(valor_do_empenho = stringr::str_replace(valor_do_empenho, "[.]", ","))
+
+
 readr::write_delim(tb_despesas_municipios, file.path("bd_sqlite", "tabela_despesas_municipais_tidy_data.csv"),
                    delim = ";")
 
-print("Todos os dados foram colocados no padrão Tidy Data")
+print("Todos os dados foram colocados no padrão Tidy Data internacional em CSV")
+
+readr::write_delim(tb_despesas_municipios_BR, file.path("bd_sqlite", "tabela_despesas_municipais_tidy_data_BR.csv"),
+                   delim = ";")
+
+print("Todos os dados foram colocados no padrão Tidy Data Brasil (R$) em CSV")
+
 
 DBI::dbDisconnect(conect_bd)
   
@@ -1321,7 +1337,7 @@ conect_bd <- conexao_sgbd()
 
 
 # Variável que define a partir de que ano os dados serão raspados.
-ano <- c("2018")
+ano <- c("2018", "2017")
 
 # Variável que define os municípios (e respectios entes municipais) serão raspados.
 # Web Scraping das entidades municipais somente do Município de Salvador (Prefeitura, Câmara e Adm. Indireta)
