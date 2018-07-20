@@ -778,7 +778,7 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
   # Realiza o parser no arquivo HTML
   parser_arq_html <- xml2::read_html(file.path("resposta_scraping_links", nm_municipio,
                                                gsub("/", "", nm_entidade), nm_arq_html_pag))
-
+  
   # Extrai a tabela do arquivo HTML
   convert_html_tab <- parser_arq_html %>%
                       rvest::html_node("#tabelaResultado") %>% 
@@ -886,81 +886,113 @@ scraping_html_purrr <- purrr::safely(httr::GET)
 
 scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
     
-      # Verifica houve timeout. Se sim, esperar 20 segundos e tentar novamente.
-      if (length(scraping_html$result) == 0) {
-        
-          print(paste("### Timeout estrapolou o tempo", "-", nm_arq_html_pag,
-                      "- doc:", documento, "- primeira tentativa ###"))
-        
-           tb_request <- tibble::tibble(
-                                        log = "timeout",
-                                        time = log_request,
-                                        id = id,
-                                        nm_entidade = nm_entidade,
-                                        pagina = pagina,
-                                        documento = documento,
-                                        link = link_despesa
-                                        )
+  # Verifica houve timeout. Se sim, esperar 20 segundos e tentar novamente.
+if (length(scraping_html$result) == 0) {
+  
+    print(paste("### Timeout estrapolou o tempo", "-", nm_arq_html_pag,
+                "- doc:", documento, "- primeira tentativa ###"))
+  
+     tb_request <- tibble::tibble(
+                                  log = "timeout",
+                                  time = log_request,
+                                  id = id,
+                                  nm_entidade = nm_entidade,
+                                  pagina = pagina,
+                                  documento = documento,
+                                  link = link_despesa
+                                  )
 
-           DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
-          
-           Sys.sleep(20)
+     DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+    
+     Sys.sleep(20)
         
 }
+
 
 # Segunda tentativa. Se houver timeout novamente, pular para a próxima requisição.
 scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
-        
-      if (length(scraping_html$result) == 0) {
-        
+  
+if (length(scraping_html$result) == 0) {
+  
 
-          tb_request <- tibble::tibble(
-                                      log = "timeout",
-                                      time = log_request,
-                                      id = id,
-                                      nm_entidade = nm_entidade,
-                                      pagina = pagina,
-                                      documento = documento,
-                                      link = link_despesa
-                                      )
+    tb_request <- tibble::tibble(
+                                log = "timeout",
+                                time = log_request,
+                                id = id,
+                                nm_entidade = nm_entidade,
+                                pagina = pagina,
+                                documento = documento,
+                                link = link_despesa
+                                )
 
-           DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
-          
-           # Parar a iteração e pular para a próxima requisição
-           return(print(paste("### Timeout estrapolou o tempo", "-", nm_arq_html_pag,
-              "- doc:", documento, "- segunda tentativa ###")))
+     DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+    
+     # Parar a iteração e pular para a próxima requisição
+     return(print(paste("### Timeout estrapolou o tempo", "-", nm_arq_html_pag,
+        "- doc:", documento, "- segunda tentativa ###")))
   
 }
 
-     # Verifica se há erro de querisição 404. Se sim, grava o erro numa tabela de log no BD.
-     if (scraping_html$result$status_code == 404) {
+ # Verifica se há erro de querisição 404. Se sim, grava o erro numa tabela de log no BD.
+if (scraping_html$result$status_code == 404) {
 
 
-         tb_request <- tibble::tibble(
-                                      log = scraping_html$result$status_code,
-                                      time = log_request,
-                                      id = id,
-                                      nm_entidade = nm_entidade,
-                                      pagina = pagina,
-                                      documento = documento,
-                                      link = link_despesa
-                                      )
+   tb_request <- tibble::tibble(
+                                log = scraping_html$result$status_code,
+                                time = log_request,
+                                id = id,
+                                nm_entidade = nm_entidade,
+                                pagina = pagina,
+                                documento = documento,
+                                link = link_despesa
+                                )
 
-         DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+   DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
 
-        # Parar a iteração e pular para a próxima requisição.
-         return(print(paste("### Erro 404 de Requisição", "-",
-                     nm_arq_html_pag, "- doc:", documento, "###")))
+  # Parar a iteração e pular para a próxima requisição.
+   return(print(paste("### Erro 404 de Requisição", "-",
+               nm_arq_html_pag, "- doc:", documento, "###")))
  
         
-    } else {
+}
+
+
+  # Realiza um teste no HTML para saber se os dados estão completos, ou se houve erro durante a resposta do TCM
+  # scraping_html$result é proveniente da função 'scraping_html_purrr'
+  teste_html_despesas <- scraping_html$result %>%
+                         xml2::read_html() %>%
+                         rvest::html_nodes("label+ span") %>%
+                         rvest::html_text() %>%
+                         stringr::str_trim()
+    
+
+if (teste_html_despesas[8] == "-" | teste_html_despesas[13] == "-") {
+  
+  
+             tb_request <- tibble::tibble(
+                                log = "HTML de despesa incompleto",
+                                time = log_request,
+                                id = id,
+                                nm_entidade = nm_entidade,
+                                pagina = pagina,
+                                documento = documento,
+                                link = link_despesa
+                                )
+
+   DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+
+   return(print("### O HTML não está com informações completas. Tentar mais tarde. ###"))
+   
+     
+  # Se tudo estiver OK com a requisição e com o arquivo HTML, então executa esse bloco de código.
+  } else {
       
-      
+  # Salva o arquivo HTML no HD para ser tratado por outra função    
     nome_arquivo_html <- paste0(ano, "-", cod_entidade,
                                 "-pag_", pagina, "-doc_", documento,
                                 "-val_", valor_documento, "_.html")
 
-          if (file.exists(file.path("resposta_scraping_html", nm_municipio,
+        if (file.exists(file.path("resposta_scraping_html", nm_municipio,
                                      gsub("/", "", nm_entidade), nome_arquivo_html)) == TRUE) {
     
               sufixo <- format(Sys.time(), "%H_%M_%S")
@@ -1006,6 +1038,10 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
     
 }
 
+
+######################################################################################
+
+
 ```
 
 
@@ -1031,6 +1067,9 @@ pegar_dados_html <- parser_arq_html %>%
                     rvest::html_nodes("label+ span") %>%
                     rvest::html_text() %>%
                     stringr::str_trim()
+
+
+log_tratamento_arq_html_despesa <- log_data_hora()
 
   
 tb_despesas_municipais <- tibble::tibble(
@@ -1104,6 +1143,7 @@ DBI::dbDisconnect(conect_bd)
 
 
 }
+
 
 ######################################################################################
 
@@ -1192,8 +1232,12 @@ executar_tidy_data <- function() {
                           dplyr::mutate(valor_do_pagamento = valor_monetario(valor_do_pagamento)) %>%
                           dplyr::mutate(valor_do_empenho = valor_monetario(valor_do_empenho)) %>%
                           dplyr::mutate_all(funs(stringi::stri_trans_general(., "latin-ascii"))) %>%
+                          #!!! Converter a data para o padrão inglês
                           dplyr::mutate_all(stringr::str_to_upper) %>%
+                          #!!! Colocar as últimas 4 colunas em letra minúscula
                           dplyr::mutate_all(stringr::str_trim)
+                          #!!! Converter o encodinf para UTF-8
+                          
 
 DBI::dbWriteTable(conect_bd, "tabela_despesas_municipais_tidy_data", tb_despesas_municipios, overwrite = TRUE)
   
@@ -1233,6 +1277,10 @@ conect_bd <- conexao_sgbd()
   DBI::dbDisconnect(conect_bd)
   
 }
+
+######################################################################################
+
+
 ```
 
 
@@ -1323,8 +1371,12 @@ executar_tidy_data()
 #    bem como gravar logs; bem como poder utilizá-la em todas etapas de scraping do código.
 #!!! Implementar uma função para identificar HTML com problemas/homissões no seu conteúdo devido a problemas
 #    no servidor do TCM ao responder as requisições
+
 #!!! Na função 'executar_tidy_data' especificar a saída do ID como numérico. E não torna maiúscula
 #    as variáveis "nm_arq_html_despesa", hash_arq_html_despesa e link
+#!!! Ajustar a data em 'pagamento' para o padrão inglês na função tidy_data
+#!!! Terntar converter o encoding para UFT-8
+
 #!!! Implementar uma Função de backup do BD
 #!!! Documentar todo o código
 #!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
