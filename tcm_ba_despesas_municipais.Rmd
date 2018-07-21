@@ -1316,11 +1316,15 @@ executar_tidy_data <- function() {
                                             remove = TRUE, extra = "merge") %>%
                             dplyr::mutate(valor_das_retencoes = stringr::str_replace(valor_das_retencoes, "-", "0")) %>%
                             dplyr::mutate(tipo_de_documento = stringr::str_replace(tipo_de_documento, "[º]", ".")) %>%
-                            dplyr::mutate(valor_das_retencoes = valor_monetario(valor_das_retencoes)) %>%
-                            dplyr::mutate(valor_do_pagamento = valor_monetario(valor_do_pagamento)) %>%
-                            dplyr::mutate(valor_do_empenho = valor_monetario(valor_do_empenho)) %>%
-                            dplyr::mutate(data_do_pagamento = lubridate::dmy(data_do_pagamento)) %>%
-                            dplyr::mutate(data_empenho = lubridate::dmy(data_empenho)) %>%
+                            # dplyr::mutate(valor_das_retencoes = valor_monetario(valor_das_retencoes)) %>%
+                            # dplyr::mutate(valor_do_pagamento = valor_monetario(valor_do_pagamento)) %>%
+                            # dplyr::mutate(valor_do_empenho = valor_monetario(valor_do_empenho)) %>%
+                            # dplyr::mutate(data_do_pagamento = lubridate::dmy(data_do_pagamento)) %>%
+                            # dplyr::mutate(data_empenho = lubridate::dmy(data_empenho)) %>%
+                            dplyr::mutate_at(vars(valor_do_pagamento, valor_das_retencoes,
+                                                  valor_do_empenho), funs(valor_monetario)) %>%
+
+                            dplyr::mutate_at(vars(data_do_pagamento, data_empenho), lubridate::dmy) %>%
                             dplyr::mutate_all(stringr::str_to_upper) %>%
                             dplyr::mutate(link = stringr::str_to_lower(link)) %>%
                             dplyr::mutate(nm_arq_html_despesa = stringr::str_to_lower(nm_arq_html_despesa)) %>%
