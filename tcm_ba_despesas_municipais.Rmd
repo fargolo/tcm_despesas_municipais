@@ -1445,16 +1445,7 @@ executar_tidy_data()
 ######################################################################################
 
 # PRIORIDADES
-#!!! Identificar por que a tabela_entidades_alvo_paginas não está criando as paginações
-#    ao se acrescentar novos anos ex: "2017". O problema deve estar na função
-#    'executar_scraping_num_pags'
 #!!! Docker do RStudio no Digital Ocean
-
-
-# BUG
-#!!! Identificar por que a tabela_entidades_alvo_paginas não está criando as paginações
-#    ao se acrescentar novos anos ex: "2017". O problema deve estar na função
-#    'executar_scraping_num_pags' ou na função que cria tabela_entidades_alvo_paginas
 
 
 # MELHORIAS
@@ -1464,8 +1455,6 @@ executar_tidy_data()
 #!!! Atribuir cor aos prints
 #!!! Criar uma função específica para tratar da geração da 'tabela_entidades_alvos_paginas", que
 #    atualmente está dentro da função 'executar_scraping_num_pags(anos_alvos, cod_municipios)'
-
-
 
 
 # IMPLEMENTAÇÕES
