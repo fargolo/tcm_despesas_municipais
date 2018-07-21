@@ -344,11 +344,27 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
 
 # Criar a função que gera a tabela com a relação de meses e ano para o Web Scraping;
 criar_tb_dcalendario <- function(anos_alvos){
+
+anos_alvos <- as.numeric(anos_alvos)
+
+if(length(anos_alvos) > 1){ 
   
+  return(print("Informe apenas um valor: O ano de início para realizar o Web Scraping."))
+
+}
+
+anos_validos <- c(2016, 2017, 2018)
+
+if(!anos_alvos %in% anos_validos){
+  
+  return(print("Informe um dos seguintes anos: 2016, 2017 ou 2018"))
+    
+}
+
 # Cria a conexão com o SGBD;
 conect_bd <- conexao_sgbd()
 
-tb_dcalendario <- map_dfr(anos_alvos, tb_anos_alvos) %>%
+tb_dcalendario <- purrr::map_dfr(anos_alvos, tb_anos_alvos) %>%
                   tibble::as.tibble()
 
 DBI::dbWriteTable(conect_bd, "tabela_dcalendario", tb_dcalendario, overwrite = TRUE)
@@ -359,11 +375,11 @@ DBI::dbDisconnect(conect_bd)
   
   
 }
-  
-  
+ 
 ######################################################################################
   
 tb_anos_alvos <- function(anos_alvos) {
+  
 
 # Cria a tabela com a relação de meses e ano para o Web Scraping;
 tb_calendario <- tibble::tibble(data = seq(ymd(paste0(anos_alvos,"-01-01")), (today() - day(today()) + 1 - months(2)), by = "month"),
@@ -686,16 +702,31 @@ criar_pastas()
 criar_tb_dcalendario(anos_alvos)
 
 
+tb_dcalendario <- DBI::dbReadTable(conect_bd, "tabela_dcalendario") %>%
+                  dplyr::select("ano") %>%
+                  tibble::as.tibble() %>%
+                  dplyr::distinct()
+                                  
+
 tb_municipios_alvos_novos <- DBI::dbReadTable(conect_bd, "tabela_tcm_dmunicipios_entidades") %>%
-                             dplyr::filter(cod_municipio %in% cod_municipios_alvos) %>%
-                             dplyr::mutate(pagina = "1") %>%
-                             dplyr::mutate(ano = anos_alvos) %>%
+                              dplyr::filter(cod_municipio %in% cod_municipios_alvos) %>%
+                              dplyr::mutate(pagina = "1") %>%
+                              dplyr::select("cod_municipio", "nm_municipio",
+                                            "cod_entidade", "nm_entidade", "pagina") %>%
+                              tibble::as.tibble()
+
+# Essa parte do código foi um armenge, em virtude de não ter conseguido colocar o ano para expandir
+# na rotina antior
+tb_municipios_alvos_novos <- git2r::merge(tb_municipios_alvos_novos, tb_dcalendario$ano) %>%
+                             dplyr::mutate(ano = y) %>%
                              dplyr::select("ano", "cod_municipio", "nm_municipio",
-                                           "cod_entidade", "nm_entidade", "pagina")
+                                            "cod_entidade", "nm_entidade", "pagina") %>%
+                             tibble::as.tibble()
 
-tb_municipios_alvos_anteriores <- DBI::dbReadTable(conect_bd, "tabela_entidades_alvos_paginas")
 
-cod_mun_ant <- tb_municipios_alvos_anteriores$cod_municipio
+
+tb_municipios_alvos_anteriores <- DBI::dbReadTable(conect_bd, "tabela_entidades_alvos_paginas") %>%
+                                  tibble::as.tibble()
 
 ano_ant <- tb_municipios_alvos_anteriores$ano %>%
            unique()
@@ -704,7 +735,7 @@ ano_ant <- tb_municipios_alvos_anteriores$ano %>%
 tb_municipios_alvos_atualizada <- tb_municipios_alvos_novos %>%
                                   # o sinal ! antes de cod_municipio é um
                                   # operador lógico para excluir os dados da coluna (Lei de De Morgan)
-                                  dplyr::filter(!cod_municipio %in% cod_mun_ant & !ano %in% ano_ant)
+                                  dplyr::filter(!ano %in% ano_ant & cod_municipio %in% cod_municipios_alvos)
                                   
 DBI::dbWriteTable(conect_bd, "tabela_entidades_alvos_paginas",
                   tb_municipios_alvos_atualizada, append = TRUE)
@@ -1351,7 +1382,7 @@ conect_bd <- conexao_sgbd()
 
 
 # Variável que define a partir de que ano os dados serão raspados.
-anos_alvos <- c("2018", "2017")
+anos_alvos <- c("2018")
 
 # Variável que define os municípios (e respectios entes municipais) serão raspados.
 # Web Scraping das entidades municipais somente do Município de Salvador (Prefeitura, Câmara e Adm. Indireta)
@@ -1423,18 +1454,21 @@ executar_tidy_data()
 # BUG
 #!!! Identificar por que a tabela_entidades_alvo_paginas não está criando as paginações
 #    ao se acrescentar novos anos ex: "2017". O problema deve estar na função
-#    'executar_scraping_num_pags'
+#    'executar_scraping_num_pags' ou na função que cria tabela_entidades_alvo_paginas
 
 
 # MELHORIAS
 #!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária???)
 #!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`
+#!!! Na função 'executar_tidy_data' especificar a saída do ID como numérico.
 #!!! Atribuir cor aos prints
+#!!! Criar uma função específica para tratar da geração da 'tabela_entidades_alvos_paginas", que
+#    atualmente está dentro da função 'executar_scraping_num_pags(anos_alvos, cod_municipios)'
+
+
 
 
 # IMPLEMENTAÇÕES
-#!!! Na função 'executar_tidy_data' especificar a saída do ID como numérico.
-
 #!!! Implementar uma Função de backup do BD
 #!!! Documentar todo o código
 #!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
