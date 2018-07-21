@@ -80,6 +80,7 @@ dir_principal <- getwd()
 subdir_bd_sqlite <- file.path(dir_principal, "bd_sqlite")
 subdir_resposta_scraping_html <- file.path(dir_principal, "resposta_scraping_html")
 subdir_resposta_scraping_links <- file.path(dir_principal, "resposta_scraping_links")
+subdir_dados_exportados <- file.path(dir_principal, "dados_exportados")
 
 if (dir.exists(dir_principal) == FALSE) {
     dir.create(dir_principal)
@@ -98,6 +99,9 @@ if (dir.exists(subdir_resposta_scraping_links) == FALSE) {
     dir.create(subdir_resposta_scraping_links)
 }
 
+if (dir.exists(subdir_dados_exportados) == FALSE) {
+    dir.create(subdir_dados_exportados)
+}
 
 print("As pastas foram criadas com sucesso no diretório")
 
@@ -709,33 +713,43 @@ tb_dcalendario <- DBI::dbReadTable(conect_bd, "tabela_dcalendario") %>%
                                   
 
 tb_municipios_alvos_novos <- DBI::dbReadTable(conect_bd, "tabela_tcm_dmunicipios_entidades") %>%
-                              dplyr::filter(cod_municipio %in% cod_municipios_alvos) %>%
-                              dplyr::mutate(pagina = "1") %>%
-                              dplyr::select("cod_municipio", "nm_municipio",
+                             dplyr::filter(cod_municipio %in% cod_municipios_alvos) %>%
+                             dplyr::mutate(pagina = "1") %>%
+                             dplyr::select("cod_municipio", "nm_municipio",
                                             "cod_entidade", "nm_entidade", "pagina") %>%
-                              tibble::as.tibble()
-
+                             tibble::as.tibble()
+tibble::add_column()
 # Essa parte do código foi um armenge, em virtude de não ter conseguido colocar o ano para expandir
 # na rotina antior
 tb_municipios_alvos_novos <- git2r::merge(tb_municipios_alvos_novos, tb_dcalendario$ano) %>%
-                             dplyr::mutate(ano = y) %>%
-                             dplyr::select("ano", "cod_municipio", "nm_municipio",
+                              dplyr::mutate(ano = y) %>%
+                              dplyr::select("ano", "cod_municipio", "nm_municipio",
                                             "cod_entidade", "nm_entidade", "pagina") %>%
-                             tibble::as.tibble()
-
+                              dplyr::mutate(filtro = paste0(ano, cod_municipio)) %>%
+                              tibble::as.tibble()
 
 
 tb_municipios_alvos_anteriores <- DBI::dbReadTable(conect_bd, "tabela_entidades_alvos_paginas") %>%
+                                  dplyr::mutate(filtro = paste0(ano, cod_municipio)) %>%
                                   tibble::as.tibble()
 
-ano_ant <- tb_municipios_alvos_anteriores$ano %>%
-           unique()
+filtro_ant <- tb_municipios_alvos_anteriores$filtro
 
 
 tb_municipios_alvos_atualizada <- tb_municipios_alvos_novos %>%
-                                  # o sinal ! antes de cod_municipio é um
-                                  # operador lógico para excluir os dados da coluna (Lei de De Morgan)
-                                  dplyr::filter(!ano %in% ano_ant & cod_municipio %in% cod_municipios_alvos)
+  # o sinal ! antes de cod_municipio é um
+  # operador lógico para excluir os dados da coluna (Lei de De Morgan)
+                                  dplyr::filter(!filtro %in% filtro_ant) %>%
+                                  dplyr::arrange(desc(ano))
+#!!! Aqui, termina o armengue no código, pois não consegui usar a função dplyr::filter com dois critérios como um.
+# No futuro, subistituir o techo aciima pelo debaixo que está comentado.
+
+
+# tb_municipios_alvos_atualizada <- tb_municipios_alvos_novos %>%
+#                                   dplyr::filter(!cod_municipio %in% cod_muni_ant | !ano %in% ano_ant)%>%
+#                                   dplyr::arrange(desc(ano))
+
+
                                   
 DBI::dbWriteTable(conect_bd, "tabela_entidades_alvos_paginas",
                   tb_municipios_alvos_atualizada, append = TRUE)
@@ -1326,12 +1340,12 @@ tb_despesas_municipios_BR <- tb_despesas_municipios %>%
                              dplyr::mutate(valor_do_empenho = stringr::str_replace(valor_do_empenho, "[.]", ","))
 
 
-readr::write_delim(tb_despesas_municipios, file.path("bd_sqlite", "tabela_despesas_municipais_tidy_data.csv"),
+readr::write_delim(tb_despesas_municipios, file.path("dados_exportados", "tabela_despesas_municipais_tidy_data.csv"),
                    delim = ";")
 
 print("Todos os dados foram colocados no padrão Tidy Data internacional em CSV")
 
-readr::write_delim(tb_despesas_municipios_BR, file.path("bd_sqlite", "tabela_despesas_municipais_tidy_data_BR.csv"),
+readr::write_delim(tb_despesas_municipios_BR, file.path("dados_exportados", "tabela_despesas_municipais_tidy_data_BR.csv"),
                    delim = ";")
 
 print("Todos os dados foram colocados no padrão Tidy Data Brasil (R$) em CSV")
@@ -1378,7 +1392,7 @@ conect_bd <- conexao_sgbd()
 
 
 
-```{r executar, eval=FALSE, include=FALSE}
+```{r executar, eval=FALSE, message=FALSE, include=FALSE}
 
 
 # Variável que define a partir de que ano os dados serão raspados.
