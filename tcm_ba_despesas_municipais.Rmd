@@ -1,5 +1,5 @@
 ---
-title: "Web Scraping - Despesas dos Municípios do Estado da Bahia"
+title: "Web Scraping - Despesas dos Municípios do Estado da Bahia, via site do Tribunal de Contas dos Municípios do Estado da Bahia - TCM-Ba"
 author: "George Santiago"
 date: "18 de julho de 2018"
 output: html_document
@@ -7,16 +7,18 @@ output: html_document
 
 # Sobre a proposta e objetivo do Web Scraping
 
-O presente Web Scraping tem o objetivo de obter os dados .
 
-## Sobre o Código do Web Scraping em Linguagem R
+# Sobre o Código do Web Scraping em Linguagem R
+
 
 ## Etapas e Estratégias do Web Scraping
 
+
 ## Estrutura do Código em Linguagem R do Web Scraping
 
+
 ### Código do Web Scraping em Linguagem R 
-1.1 - Carregar os pacotes utilizados no script
+- Carregar os pacotes utilizados no script
 
 Nessa etapa, iremos carregar os pacotes utilizadas em todo o Web Scraping, bem como definir o diretório de trabalho, que é de fundamental importância na etapa de criação das pastas para armazenamento dos dados obtidos. Se os pacotes não estivem instalados na máquina, será necessário utilizar o comando *install.packages("nome_do_pacote")* para que consiga ser carregado com na função *library()*
 
@@ -67,11 +69,60 @@ if(require(packrat) == FALSE) { install.packages("packrat")}
 ```
 
 
-1 - Criar o conjunto de pasta de trabalho (diretório)
+01 - Bloco de código (chunk) que contém um conjunto de Funções variadas: Cria a data e hora local, com timezone do Brasil;...
 
-```{r criar_diretorios}
 
-criar_pastas <- function() {
+```{r 01_funcoes_variadas}
+
+# Função que cria a data e hora local, com timezone do Brasil
+# Essa função foi desenvolvida para colocar a informação no formato DATE em formato 'character' no SQLite,
+# visto que o SQLite converte data em número.
+log_data_hora <- function () {
+
+format(lubridate::now(), tz ="Brazil/East", usetz = TRUE)
+
+}
+
+###################################################################
+
+valor_monetario <- function (x) {
+  
+     readr::parse_number(x, 
+                         locale = locale(grouping_mark = ".",
+                                         decimal_mark = ","))
+
+}
+
+###################################################################
+
+url_tcm <- function () {
+  
+url_tcm <-  "http://www.tcm.ba.gov.br/consulta-de-despesas/"
+  
+}
+
+###################################################################
+
+url_tcm_entidades_ws <- function(){
+
+url_tcm_entidades_ws <- "http://www.tcm.ba.gov.br/Webservice/index.php/entidades?cdMunicipio="
+
+}
+
+###################################################################
+
+
+
+```
+
+
+
+02 - Bloco de código (chunk) que contém a Função que Criar o conjunto de pastas de trabalho (diretórios)
+
+
+```{r 02_criar_diretorios}
+
+criar_diretorios <- function() {
 
 # Cria as pastas dos diretórios que serão utilizados;  
 
@@ -110,55 +161,19 @@ print("As pastas foram criadas com sucesso no diretório")
 
 ```
 
-2 - Função que cria a data e hora local, com timezone do Brasil
 
-```{r parametros}
+03 - Bloco de código (chunk) que contém a Função que cria a conexão com o SGBD
 
-# Função que cria a data e hora local, com timezone do Brasil
-# Essa função foi desenvolvida para colocar a informação no formato DATE em formato 'character' no SQLite,
-# visto que o SQLite converte data em número.
-log_data_hora <- function () {
 
-format(lubridate::now(), tz ="Brazil/East", usetz = TRUE)
+```{r 03_conexao_sgbd}
 
-}
 
 ###################################################################
 
-valor_monetario <- function (x) {
-  
-     readr::parse_number(x, 
-                         locale = locale(grouping_mark = ".",
-                                         decimal_mark = ","))
-
-}
-
-###################################################################
-
-url_tcm <- function () {
-  
-url_tcm <-  "http://www.tcm.ba.gov.br/consulta-de-despesas/"
-  
-}
-
-###################################################################
-
-url_tcm_entidades_ws <- function(){
-
-url_tcm_entidades_ws <- "http://www.tcm.ba.gov.br/Webservice/index.php/entidades?cdMunicipio="
-
-}
-
-```
-
-
-3 - Função que estabelece a Conexão com o SGBD
-
-```{r conect_sgbd}
 conexao_sgbd <- function() {
 
 # Verifica se o diretório onde ficará o arquivo do SQLite está criado;
-if (dir.exists("bd_sqlite") == FALSE) { criar_pastas() }
+if (dir.exists("bd_sqlite") == FALSE) { criar_diretorios() }
 
 # Cria a conexão com o SQLite, assim como o arquivo 'bd_tcm_gastos_municipais.db', caso ele não exista;
 drive <- DBI::dbDriver("SQLite")
@@ -170,7 +185,19 @@ return(sqlite_bd)
 
 }
 
-######################################################################################
+###################################################################
+
+
+
+```
+
+
+
+04 - Bloco de código (chunk) que contém a Função que cria as tabelas no SGBD;
+
+
+```{r 04_criar_tabelas_bd}
+
 
 criar_tabelas_bd <- function() {
   
@@ -343,9 +370,9 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
 ```
 
 
-4 - Função que cria e atualiza a tabela dCalendario no BD
+05 - Bloco de código (chunk) que contém a Função que cria e atualiza a tabela dCalendario no BD
 
-```{r criar_tab_dcalendario}
+```{r 05_criar_tab_dcalendario}
 
 # Criar a função que gera a tabela com a relação de meses e ano para o Web Scraping;
 criar_tb_dcalendario <- function(anos_alvos){
@@ -406,9 +433,10 @@ return(tb_calendario)
 ```
 
 
-5 - Cria 2 (duas) funções: A 'scraping_tcm_municipios', responsável por capturar o código e nome dos municípios; e a 'criar_tb_dmunicipios' que gravará o resultado do scraping no BD do SQLite na tabela 'tabela_tcm_dmunicipios'.
+06 - Bloco de código (chunk) que contém as funções: 'criar_tb_dmunicipios' que gravará o resultado do scraping no BD na tabela 'tabela_tcm_dmunicipios'. E a 'scraping_tcm_municipios', responsável por capturar o código e nome dos municípios;
 
-```{r criar_tab_dmunicipios}
+
+```{r 06_criar_tab_dmunicipios}
 
 criar_tb_dmunicipios <- function() {
 
@@ -469,9 +497,10 @@ return(tabela_tcm_dmunicipios)
 ```
 
 
-6 - Nesta etapa, também criamos 02(duas) funções: Cria 2 (duas) funções: A 'scraping_tcm_entidades_ws', responsável por capturar o código e nome dos entes muninipais; e a 'criar_tb_dmunicipios_entidades' que gravará o resultado do scraping no BD do SQLite na tabela 'tabela_tcm_dmunicipios_entidades'.
+07 - Bloco de código (chunk) que contém as funções que:'criar_tb_dmunicipios_entidades' que gravará o resultado do scraping no BD na tabela 'tabela_tcm_dmunicipios_entidades'.E a função 'scraping_tcm_entidades_ws', responsável por capturar o código e nome dos entes muninipais;
 
-```{r criar_tab_dmunicipios_entidades}
+
+```{r 07_criar_tab_dmunicipios_entidades}
 
 criar_tb_dmunicipios_entidades <- function() {
 
@@ -536,9 +565,9 @@ return(tratar_resultado)
 ```
 
 
+08 -  Bloco de código (chunk) que contém a Função que cria a tabela das entidades alvos
 
-
-```{r criar_tb_entidades_alvos_paginas}
+```{r 08_criar_tb_entidades_alvos_paginas}
 
 
 criar_tb_entidades_alvos_paginas <- function(anos_alvos, cod_municipios_alvos){
@@ -546,7 +575,7 @@ criar_tb_entidades_alvos_paginas <- function(anos_alvos, cod_municipios_alvos){
 # Cria a conexão com o SGBD;
 conect_bd <- conexao_sgbd()
 
-criar_pastas()
+criar_diretorios()
 
 criar_tb_dcalendario(anos_alvos)
 
@@ -609,9 +638,10 @@ print("Tabela 'tabela_entidades_alvos_paginas' gerada com sucesso!")
 
 
 
-7 - Função do Web Scraping para obter as páginas e links das depesas
+09 - Bloco de código (chunk) que contém a Função do Web Scraping para obter as páginas e links das depesas
 
-```{r scraping_tab_paginas_links, message=FALSE, warning=FALSE}
+
+```{r 09_scraping_tab_paginas_links, message=FALSE, warning=FALSE}
 
 
 executar_scraping_num_pags <- function() {
@@ -805,8 +835,10 @@ DBI::dbDisconnect(conect_bd)
 ```
 
 
+10 - Bloco de código (chunk) que contém a Função que cria a tabela de requisições
 
-```{r criar_tb_requisicoes_despesas}
+
+```{r 10_criar_tb_requisicoes_despesas}
 
 ######################################################################################
 
@@ -935,9 +967,9 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
 
 
 
-8 - Função que faz o Web Scraping para obter os arquivos HMTL que contêm os Extatos das Despesas 
+11 - Bloco de código (chunk) que contém a Função que faz o Web Scraping para obter os arquivos HMTL que contêm os Extatos das Despesas 
 
-```{r scraping_html_despesas}
+```{r 11_scraping_html_despesas}
 
 executar_scraping_html_despesas <- function() {
   
@@ -1010,8 +1042,9 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
   # Verifica houve timeout. Se sim, esperar 20 segundos e tentar novamente.
 if (length(scraping_html$result) == 0) {
   
-    print(paste("### Timeout estrapolou o tempo", "-", nm_arq_html_pag,
-                "- doc:", documento, "- primeira tentativa ###"))
+    print(paste("### Timeout: estrapolou o tempo", "-", nm_arq_html_pag,
+                "- doc:", documento,
+                "- primeira tentativa. Mais uma tentativa será realizada ###"))
   
      tb_request <- tibble::tibble(
                                   log = "timeout",
@@ -1052,8 +1085,9 @@ if (length(scraping_html$result) == 0) {
      DBI::dbDisconnect(conect_bd)
      
      # Parar a iteração e pular para a próxima requisição
-     return(print(paste("### Timeout estrapolou o tempo", "-", nm_arq_html_pag,
-                        "- doc:", documento, "- segunda tentativa ###")))
+     return(print(paste("### Timeout: estrapolou o tempo", "-", nm_arq_html_pag,
+                        "- doc:", documento,
+                        " da segunda tentativa - Pulando para o próximo link de despesa  ###")))
   
 }
 
@@ -1077,7 +1111,8 @@ if (scraping_html$result$status_code == 404) {
 
    # Parar a iteração e pular para a próxima requisição.
    return(print(paste("### Erro 404 de Requisição", "-",
-                       nm_arq_html_pag, "- doc:", documento, "###")))
+                       nm_arq_html_pag, "- doc:", documento,
+                      ". Pulando para o próximo link de desepesa ###")))
  
         
 }
@@ -1091,6 +1126,7 @@ if (scraping_html$result$status_code == 404) {
                          rvest::html_text() %>%
                          stringr::str_trim()
   
+  # Primeiro critério que será usado no teste de integridade do arquivo HTML
   teste_1 <- "-"
   
 
@@ -1176,11 +1212,14 @@ if (teste_html_despesas[8] == teste_1) {
 ```
 
 
-10 - Função que faz o parser e o Data Munging dos arquivos HMTL que contêm os Extatos das Despesas
 
-```{r data_wrangling_html_despesas}
+12 - Bloco de código (chunk) que contém a Função que faz o parser e o Data Munging dos arquivos HMTL que contêm os Extatos das Despesas. E função que transforma os dados no padrão Tidy, armazenando-os em uma tabela no BD e exportando em arquivos CSV.
 
-executar_data_wrangling_html_despeas <- function() {
+
+
+```{r 12_data_wrangling_html_despesas}
+
+executar_data_wrangling_html_despesas <- function() {
   
 # Cria a conexão com o SGBD;
 conect_bd <- conexao_sgbd()
@@ -1196,7 +1235,7 @@ conect_bd <- conexao_sgbd()
     
     } else {
 
-        purrr::pwalk(tb_requisicoes, data_wrangling_html)
+        purrr::pwalk(tb_requisicoes, data_wrangling_html_despesas)
         
         print("Todos os Arquivos HTML das despesas já foram tratados")
 
@@ -1209,7 +1248,7 @@ conect_bd <- conexao_sgbd()
 ######################################################################################
 
 
-data_wrangling_html <- function(id, ano, cod_municipio, nm_municipio,
+data_wrangling_html_despesas <- function(id, ano, cod_municipio, nm_municipio,
                                 cod_entidade, nm_entidade, pagina,
                                 status_request_html_pag, log_request_html_pag,
                                 nm_arq_html_pag, documento, valor_documento,
@@ -1427,7 +1466,7 @@ print("Todos os dados foram colocados no padrão Tidy Data Brasil (R$) em CSV")
 ```
 
 
-
+- Área de Execução para teste do código
 
 
 ```{r executar, eval=FALSE, message=FALSE, include=FALSE}
@@ -1445,7 +1484,7 @@ cod_municipios <- c(2928703)
 #cod_municipios <- c(2928703, 2928604, 2922508, 2925303, 2913606, 2903201, 2929206, 2927408)
 
 # Função que cria as pastas dos arquivos
-criar_pastas()
+criar_diretorios()
 
 # Função que cria 4 tabelas que serão armazenadas no SQLite.
 criar_tabelas_bd()
@@ -1475,7 +1514,7 @@ criar_tb_requisicoes_despesas()
 executar_scraping_html_despesas()
 
 # Função que faz o parser dos HTMLs das depesas e o Data Wrangling dos HTMLs
-executar_data_wrangling_html_despeas()
+executar_data_wrangling_html_despesas()
 
 # Função que faz o pré-processamento dos dados obtidos do HTML, aplicando o conceito Tidy Data 
 # Por fim, cria uma tabela no padrão Tidy Data no BD e exporta dois arquivos CSV para a pasta
@@ -1498,7 +1537,7 @@ executar_tidy_data()
 
 
 
-
+- Área que indica os BUGs a serem corrigidos, e as Melhorias, Implementações e Testes que precisam ser feitas no Código.
 
 
 ```{r eval=FALSE, include=FALSE}
@@ -1506,40 +1545,52 @@ executar_tidy_data()
 ######################################################################################
 
 # PRIORIDADES
-#!!! Implantar o Docker do RStudio no Digital Ocean
+#!!! Implantar o Docker do RStudio no Digital Ocean;
 
 
 # MELHORIAS
-#!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`
-#!!! Na função 'executar_tidy_data' especificar a saída do ID como numérico.
-#!!! Verificar a necessidade de evitar a sobresrição de arquivos HMTL das páginas_links, colocando um sufixo ao final
-#!!! Atribuir cor aos prints
+#!!! Na função 'executar_tidy_data' especificar a saída do ID como numérico;
+#!!! Verificar a necessidade de evitar a sobresrição de arquivos HMTL das páginas_links, colocando um sufixo ao final;
+#!!! Na função 'executar_tidy_data', substituir os "-" que aparecem em 'fonte_de_recurso_tcm' e 'fonte_de_recurso_gestor'
+#    pelos valores que estão em "fonte_de_recurso_tcm_2" e 'fonte_de_recurso_gestor_2'
+#!!! Implementar uma rotina para evitar timeout nos Webs Scrapings que estão
+#    contidos nas funções 'criar_tb_dmunicipios_entidades' e 'criar_tb_dmunicipios'
+#!!! Procurar uma solução no pacote dplyr oy tibble para o 'armengue' feito na função 'criar_tb_entidades_alvos_paginas'
+#    com a função git2r;
 
 
 # IMPLEMENTAÇÕES
 # NO CÓDIGO
-#!!! Documentar todo o código
-#!!! Desenvolver o Packrat do Web Scraping
+#!!! Documentar todo o código;
+#!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`;
+#!!! Atribuir cor aos prints;
+#!!! Desenvolver o Packrat do Web Scraping;
 #!!! Implementar uma Função de backup do BD e exportação de CSV
-#    em uma pasta do OneDrive
-#!!! Implementar um API com o pacote 'Plumber'
+#    em uma pasta do OneDrive;
+#!!! Reconfigurar as colunas na 'tabela_despesas_municipais', para definir os campos que devem ser
+#    armazenados como numéricos e como float (ponto flutuante), sem mexer na configuração de data,
+#    pois o SQLite não suporta formato de data;
+#!!! Implementar um API com o pacote 'Plumber';
 #!!! Finalizar o Código para que se torne automatizado com o CronR/CronTab
 #    http://leg.ufpr.br/~walmes/ensino/web-scraping/li%C3%A7%C3%B5es/13-crontab/
-#!!! Gerar 'alertas' sobre os pagamentos para publicar no Facebook, Telegram ou Facebook
-#    Ex: Despesas de festas em perídos não festivos
 #!!! Definir a melhor forma de encademaneto na execução das funções primárias para
-#    iniciar e continuar o Web Scraping
-#!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
+#    iniciar e continuar o Web Scraping. Além disso, estabelecer rotinas de check no momento de 
+#    fazer o input do anos_alvos e cod_municipio
+#!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba. Incluir uma tabela com o código e nome
+#    dos municípios e entidades municipais
+#!!! Gerar 'alertas' sobre os pagamentos para publicar no Facebook, Telegram ou Facebook
+#    Ex: Despesas de festas em perídos não festivos;
+#!!! Adequar o código para ceitar conexão com o MySQL, PostgreSQL e MongoDB
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 # NA INFRAESTRUTURA
-#!!! Implantar o Docker do RStudio no Digital Ocean
-#!!! Implantar o Docker do Rstudio com o Packrat do Web Scraping
+#!!! Implantar o Docker do RStudio no Digital Ocean, definindo o Volume para armazenar o SQLite;
+#!!! Implantar o Docker do Rstudio com o Packrat do Web Scraping;
 
 
 # FALTA TESTAR
 #!!! A abordagem para evitar a criação de links de requisição já existeste na 'tabela_requisicoes'
 #    ao tratar páginas de despesas que deixaram de ter menos de 20 links, após a complementação
-#    dos dados pelo ente municipal. Realizei um commit em relação a essa etapa
+#    dos dados pelo ente municipal. Realizei um commit em relação a essa etapa;
 
 
 ######################################################################################
