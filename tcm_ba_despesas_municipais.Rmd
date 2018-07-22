@@ -57,7 +57,7 @@ if(require(RSQLite) == FALSE) { install.packages("RSQLite")}
 if(require(git2r) == FALSE) { install.packages("git2r")}
 
 # Pacote que será usado para disponibilizar os dados via API Rest 
-#if(require(plumber) == FALSE) { install.packages("plumber")}
+if(require(plumber) == FALSE) { install.packages("plumber")}
 
 # Pacotes que serão usados para construir, via Dockerfile, a arquitetura para execução do Web Scraping em "nuvem
 if(require(packrat) == FALSE) { install.packages("packrat")}
@@ -756,6 +756,9 @@ DBI::dbWriteTable(conect_bd, "tabela_entidades_alvos_paginas",
 
 print("Tabela 'tabela_entidades_alvos_paginas' gerada com sucesso!")
 
+
+
+
 entidades_alvos <- DBI::dbReadTable(conect_bd, "tabela_entidades_alvos_paginas")
 
 
@@ -1453,34 +1456,42 @@ executar_tidy_data()
 ######################################################################################
 
 # PRIORIDADES
-#!!! Docker do RStudio no Digital Ocean
+#!!! Implantar o Docker do RStudio no Digital Ocean
 
 
 # MELHORIAS
 #!!! Aperfeiçoar a execução em cascata do código (colocar função secundária dentro de função primária???)
 #!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`
 #!!! Na função 'executar_tidy_data' especificar a saída do ID como numérico.
-#!!! Atribuir cor aos prints
 #!!! Criar uma função específica para tratar da geração da 'tabela_entidades_alvos_paginas", que
 #    atualmente está dentro da função 'executar_scraping_num_pags(anos_alvos, cod_municipios)'
+#!!! Verificar a necessidade de evitar a sobresrição de arquivos HMTL das páginas_links, colocando um sufixo ao final
+#!!! Atribuir cor aos prints
 
 
 # IMPLEMENTAÇÕES
-#!!! Implementar uma Função de backup do BD
+# NO CÓDIGO
 #!!! Documentar todo o código
-#!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
-#!!! Implementar um API com o pacote 'Plumber'
-
-#!!! Implantar o Docker do RStudio no Digital Ocean
 #!!! Desenvolver o Packrat do Web Scraping
-#!!! Implantar o Docker do Rstudio com o Packrat do Web Scraping
+#!!! Implementar uma Função de backup do BD e exportação de CSV
+#    em uma pasta do OneDrive
+#!!! Implementar um API com o pacote 'Plumber'
 #!!! Finalizar o Código para que se torne automatizado com o CronR/CronTab
+#    http://leg.ufpr.br/~walmes/ensino/web-scraping/li%C3%A7%C3%B5es/13-crontab/
+#!!! Gerar 'alertas' sobre os pagamentos para publicar no Facebook, Telegram ou Facebook
+#    Ex: Despesas de festas em perídos não festivos
+#!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba
+#- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
+# NA INFRAESTRUTURA
+#!!! Implantar o Docker do RStudio no Digital Ocean
+#!!! Implantar o Docker do Rstudio com o Packrat do Web Scraping
 
 
 # FALTA TESTAR
 #!!! A abordagem para evitar a criação de links de requisição já existeste na 'tabela_requisicoes'
 #    ao tratar páginas de despesas que deixaram de ter menos de 20 links, após a complementação
 #    dos dados pelo ente municipal. Realizei um commit em relação a essa etapa
+
 
 ######################################################################################
 
