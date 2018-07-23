@@ -211,8 +211,8 @@ if (DBI::dbExistsTable(conect_bd, "tabela_dcalendario") == FALSE) {
                                                     data TEXT NOT NULL,
                                                     ano TEXT NOT NULL,
                                                     mes TEXT NOT NULL
-                                                   );"
-                                                   )
+                                                    );"
+                                                    )
 }
 
 
@@ -224,8 +224,8 @@ if (DBI::dbExistsTable(conect_bd, "tabela_tcm_dmunicipios") == FALSE) {
                                                     cod_municipio INT NOT NULL,
                                                     nm_municipio TEXT NOT NULL,
                                                     log_create TEXT NOT NULL
-                                                   );"
-                                                   )
+                                                    );"
+                                                    )
 }
 
 
@@ -238,8 +238,8 @@ if (DBI::dbExistsTable(conect_bd, "tabela_tcm_dmunicipios_entidades") == FALSE) 
                                                     cod_entidade INT NOT NULL,
                                                     nm_entidade TEXT NOT NULL,
                                                     log_create TEXT NOT NULL
-                                                   );"
-                                                   )
+                                                    );"
+                                                    )
 }
 
 
@@ -255,8 +255,8 @@ if (DBI::dbExistsTable(conect_bd, "tabela_entidades_alvos_paginas") == FALSE) {
                                                     nm_entidade TEXT NOT NULL,
                                                     pagina INT NOT NULL,
                                                     filtro INT NOT NULL
-                                                   );"
-                                                   )
+                                                    );"
+                                                    )
 }
 
 
@@ -276,8 +276,8 @@ if (DBI::dbExistsTable(conect_bd, "tabela_paginas_links") == FALSE) {
                                                     arq_html_pag_tratado TEXT NOT NULL,
                                                     hash_arq_html_pag TEXT NOT NULL,
                                                     log_tratamento_arq_html_pag TEXT NOT NULL
-                                                   );"
-                                                   )
+                                                    );"
+                                                    )
 
 }
   
@@ -365,47 +365,61 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
 if (DBI::dbExistsTable(conect_bd, "tabela_despesas_municipais_tidy_data") == FALSE) {
 
     DBI::dbExecute(conect_bd, "CREATE TABLE tabela_despesas_municipais_tidy_data (
-                                                    id INTEGER NOT NULL,
-                                                    fase TEXT NOT NULL,
-                                                    data_do_pagamento TEXT NOT NULL,
-                                                    valor_do_pagamento REAL NOT NULL,
-                                                    documento TEXT NOT NULL,
-                                                    empenho TEXT NOT NULL,
-                                                    data_empenho TEXT NOT NULL,
-                                                    tipo_de_empenho TEXT NOT NULL,
-                                                    favorecido TEXT NOT NULL,
-                                                    valor_do_empenho REAL NOT NULL,
-                                                    valor_das_retencoes REAL NOT NULL,
-                                                    restos_a_pagar TEXT NOT NULL,
-                                                    conta_bancaria TEXT NOT NULL,
-                                                    fonte_de_recurso_tcm TEXT NOT NULL,
-                                                    fonte_de_recurso_gestor TEXT NOT NULL,
-                                                    tipo_de_documento TEXT NOT NULL,
-                                                    cod_municipio TEXT NOT NULL,
-                                                    municipio TEXT NOT NULL,
-                                                    cod_entidade TEXT NOT NULL,
-                                                    nm_entidade TEXT NOT NULL,
-                                                    poder TEXT NOT NULL,
-                                                    orgao TEXT NOT NULL,
-                                                    unidade_orcamentaria TEXT NOT NULL,
-                                                    funcao TEXT NOT NULL,
-                                                    subfuncao TEXT NOT NULL,
-                                                    programa TEXT NOT NULL,
-                                                    tipo_acao TEXT NOT NULL,
-                                                    acao TEXT NOT NULL,
-                                                    natureza_da_despesa_tcm TEXT NOT NULL,
-                                                    natureza_da_despesa_gestor TEXT NOT NULL,
-                                                    fonte_de_recurso_tcm_2 TEXT NOT NULL,
-                                                    fonte_de_recurso_gestor_2 TEXT NOT NULL,
-                                                    licitacao TEXT NOT NULL,
-                                                    dispensa_inexigibilidade TEXT NOT NULL,
-                                                    contrato TEXT NOT NULL,
-                                                    declaracao TEXT NOT NULL,
-                                                    foreign_key TEXT NOT NULL,
-                                                    nm_arq_html_despesa TEXT NOT NULL,
-                                                    hash_arq_html_despesa TEXT NOT NULL,
-                                                    log_tratamento_arq_html_despesa TEXT NOT NULL,
-                                                    link TEXT NOT NULL
+                                                  	id	INTEGER NOT NULL,
+                                                  	fase	TEXT NOT NULL,
+                                                  	data_do_pagamento	TEXT NOT NULL,
+                                                  	valor_do_pagamento	REAL NOT NULL,
+                                                  	documento	TEXT NOT NULL,
+                                                  	empenho	TEXT NOT NULL,
+                                                  	data_empenho	TEXT NOT NULL,
+                                                  	tipo_de_empenho	TEXT NOT NULL,
+                                                  	cod_favorecido	TEXT NOT NULL,
+                                                  	nm_favorecido	TEXT NOT NULL,
+                                                  	valor_do_empenho	REAL NOT NULL,
+                                                  	valor_das_retencoes	REAL NOT NULL,
+                                                  	restos_a_pagar	TEXT NOT NULL,
+                                                  	conta_bancaria	TEXT NOT NULL,
+                                                  	cod_fonte_de_recurso_tcm	TEXT NOT NULL,
+                                                  	nm_fonte_de_recurso_tcm	TEXT NOT NULL,
+                                                  	cod_fonte_de_recurso_gestor	TEXT NOT NULL,
+                                                  	nm_fonte_de_recurso_gestor	TEXT NOT NULL,
+                                                  	tipo_de_documento	TEXT NOT NULL,
+                                                  	cod_municipio	TEXT NOT NULL,
+                                                  	municipio	TEXT NOT NULL,
+                                                  	cod_entidade	TEXT NOT NULL,
+                                                  	nm_entidade	TEXT NOT NULL,
+                                                  	poder	TEXT NOT NULL,
+                                                  	cod_orgao	TEXT NOT NULL,
+                                                  	nm_orgao	TEXT NOT NULL,
+                                                  	cod_unidade_orcamentaria	TEXT NOT NULL,
+                                                  	nm_unidade_orcamentaria	TEXT NOT NULL,
+                                                  	cod_funcao	TEXT NOT NULL,
+                                                  	nm_funcao	TEXT NOT NULL,
+                                                  	cod_subfuncao	TEXT NOT NULL,
+                                                  	nm_subfuncao	TEXT NOT NULL,
+                                                  	cod_programa	TEXT NOT NULL,
+                                                  	nm_programa	TEXT NOT NULL,
+                                                  	cod_tipo_acao	TEXT NOT NULL,
+                                                  	nm_tipo_acao	TEXT NOT NULL,
+                                                  	cod_acao	TEXT NOT NULL,
+                                                  	nm_acao	TEXT NOT NULL,
+                                                  	cod_natureza_da_despesa_tcm	TEXT NOT NULL,
+                                                  	nm_natureza_da_despesa_tcm	TEXT NOT NULL,
+                                                  	cod_natureza_da_despesa_gestor	TEXT NOT NULL,
+                                                  	nm_natureza_da_despesa_gestor	TEXT NOT NULL,
+                                                  	cod_fonte_de_recurso_tcm_2	TEXT NOT NULL,
+                                                  	nm_fonte_de_recurso_tcm_2	TEXT NOT NULL,
+                                                  	cod_fonte_de_recurso_gestor_2	TEXT NOT NULL,
+                                                  	nm_fonte_de_recurso_gestor_2	TEXT NOT NULL,
+                                                  	licitacao	TEXT NOT NULL,
+                                                  	Dispensa_Inexigibilidade	TEXT NOT NULL,
+                                                  	contrato	TEXT NOT NULL,
+                                                  	declaracao	TEXT NOT NULL,
+                                                  	foreign_key	TEXT NOT NULL,
+                                                  	nm_arq_html_despesa	TEXT NOT NULL,
+                                                  	hash_arq_html_despesa	TEXT NOT NULL,
+                                                  	log_tratamento_arq_html_despesa	TEXT NOT NULL,
+                                                  	link	TEXT NOT NULL
                                                     );"
                                                     )
   
