@@ -243,6 +243,22 @@ if (DBI::dbExistsTable(conect_bd, "tabela_tcm_dmunicipios_entidades") == FALSE) 
 }
 
 
+if (DBI::dbExistsTable(conect_bd, "tabela_log_request") == FALSE) {
+
+    DBI::dbExecute(conect_bd, "CREATE TABLE tabela_log_request (
+                                                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                                  	log_erro	TEXT NOT NULL,
+                                                  	time	TEXT NOT NULL,
+                                                  	id	INTEGER NOT NULL,
+                                                  	nm_entidade	TEXT NOT NULL,
+                                                  	pagina	INTEGER NOT NULL,
+                                                  	documento	TEXT NOT NULL,
+                                                  	link	TEXT NOT NULL
+                                                    );"
+                                                    )
+}
+
+
 
 if (DBI::dbExistsTable(conect_bd, "tabela_entidades_alvos_paginas") == FALSE) {
 
@@ -1105,7 +1121,7 @@ if (length(scraping_html$result) == 0) {
                 "- primeira tentativa. Mais uma tentativa será realizada ###"))
   
      tb_request <- tibble::tibble(
-                                  log = "timeout",
+                                  log_erro = "timeout",
                                   time = log_request,
                                   id = id,
                                   nm_entidade = nm_entidade,
@@ -1129,7 +1145,7 @@ if (length(scraping_html$result) == 0) {
   
 
     tb_request <- tibble::tibble(
-                                log = "timeout",
+                                log_erro = "timeout",
                                 time = log_request,
                                 id = id,
                                 nm_entidade = nm_entidade,
@@ -1154,7 +1170,7 @@ if (scraping_html$result$status_code == 404) {
 
 
    tb_request <- tibble::tibble(
-                                log = scraping_html$result$status_code,
+                                log_erro = scraping_html$result$status_code,
                                 time = log_request,
                                 id = id,
                                 nm_entidade = nm_entidade,
@@ -1193,7 +1209,7 @@ if (teste_html_despesas[8] == teste_1) {
   # a informação '-' na base de dados do TCM
   
     tb_request <- tibble::tibble(
-                                 log = "HTML de despesa incompleto",
+                                 log_erro = "HTML de despesa incompleto",
                                  time = log_request,
                                  id = id,
                                  nm_entidade = nm_entidade,
