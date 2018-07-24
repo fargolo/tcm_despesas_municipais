@@ -79,7 +79,7 @@ if(require(packrat) == FALSE) { install.packages("packrat")}
 # visto que o SQLite converte data em número.
 log_data_hora <- function () {
 
-format(lubridate::now(), tz ="Brazil/East", usetz = TRUE)
+     format(lubridate::now(), tz ="Brazil/East", usetz = TRUE)
 
 }
 
@@ -87,9 +87,8 @@ format(lubridate::now(), tz ="Brazil/East", usetz = TRUE)
 
 valor_monetario <- function (x) {
   
-     readr::parse_number(x, 
-                         locale = locale(grouping_mark = ".",
-                                         decimal_mark = ","))
+     readr::parse_number(x, locale = locale(grouping_mark = ".",
+                                            decimal_mark = ","))
 
 }
 
@@ -249,7 +248,7 @@ if (DBI::dbExistsTable(conect_bd, "tabela_log_request") == FALSE) {
                                                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                   	log_erro	TEXT NOT NULL,
                                                   	time	TEXT NOT NULL,
-                                                  	id	INTEGER NOT NULL,
+                                                  	foreign_key	INTEGER NOT NULL,
                                                   	nm_entidade	TEXT NOT NULL,
                                                   	pagina	INTEGER NOT NULL,
                                                   	documento	TEXT NOT NULL,
@@ -381,7 +380,7 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
 if (DBI::dbExistsTable(conect_bd, "tabela_despesas_municipais_tidy_data") == FALSE) {
 
     DBI::dbExecute(conect_bd, "CREATE TABLE tabela_despesas_municipais_tidy_data (
-                                                  	id	INTEGER NOT NULL,
+                                                  	id INTEGER PRIMARY KEY AUTOINCREMENT,
                                                   	fase	TEXT NOT NULL,
                                                   	data_do_pagamento	TEXT NOT NULL,
                                                   	valor_do_pagamento	REAL NOT NULL,
@@ -675,6 +674,7 @@ tb_municipios_alvos_novos <- DBI::dbReadTable(conect_bd, "tabela_tcm_dmunicipios
 # Essa parte do código foi um armenge, em virtude de não ter conseguido colocar o ano para expandir
 # na rotina antior. Trocar por alguma função do dplyr
 tb_municipios_alvos_novos <- merge.data.frame(tb_dcalendario, tb_municipios_alvos_novos) %>%
+                             dplyr::mutate(filtro = paste0(ano, cod_municipio)) %>%
                              dplyr::arrange(desc(ano)) %>%
                              tibble::as.tibble()
 
