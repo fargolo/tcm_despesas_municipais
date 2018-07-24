@@ -1022,10 +1022,12 @@ parser_arq_html_pags <- function(id, ano, cod_municipio, nm_municipio,
   
   # Grava "S" na tabela '' para controlar os arquivos HTML já tratados 
   DBI::dbExecute(conect_bd, 'UPDATE tabela_paginas_links 
-                             SET arq_html_pag_tratado = "S"
+                             SET arq_html_pag_tratado = "S",
+                                 log_tratamento_arq_html_pag = :log_parser
                              WHERE cod_entidade = :cod_entidade AND
                                    pagina = :pagina;',
-                 params = list(cod_entidade = as.character(cod_entidade),
+                 params = list(log_tratamento_arq_html_pag = as.character(log_parser),
+                               cod_entidade = as.character(cod_entidade),
                                pagina = as.character(pagina)))
   
   print(paste0("Parser:", pagina, " - ", nm_arq_html_pag, " - ", nm_entidade))
@@ -1116,12 +1118,11 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
   # Verifica houve timeout. Se sim, esperar 20 segundos e tentar novamente.
 if (length(scraping_html$result) == 0) {
   
-    print(paste("### Timeout: estrapolou o tempo", "-", nm_arq_html_pag,
-                "- doc:", documento,
-                "- primeira tentativa. Mais uma tentativa será realizada ###"))
+    print(paste("### Timeout: da Primeira tentativa. Mais uma tentativa será realizada para:",
+                nm_arq_html_pag, "- doc:", documento, " ###"))
   
      tb_request <- tibble::tibble(
-                                  log_erro = "timeout",
+                                  log_erro = "timeout - primeira tentativa",
                                   time = log_request,
                                   foreign_key = id,
                                   nm_entidade = nm_entidade,
@@ -1145,7 +1146,7 @@ if (length(scraping_html$result) == 0) {
   
 
     tb_request <- tibble::tibble(
-                                log_erro = "timeout",
+                                log_erro = "timeout - segunda tentativa",
                                 time = log_request,
                                 foreign_key = id,
                                 nm_entidade = nm_entidade,
@@ -1159,9 +1160,8 @@ if (length(scraping_html$result) == 0) {
      DBI::dbDisconnect(conect_bd)
      
      # Parar a iteração e pular para a próxima requisição
-     return(print(paste("### Timeout: estrapolou o tempo", "-", nm_arq_html_pag,
-                        "- doc:", documento,
-                        " da segunda tentativa - Pulando para o próximo link de despesa  ###")))
+     return(print(paste("### Timeout: da Segunda tentativa para:", nm_arq_html_pag,
+                        "- doc:", documento, "- Pulando para o próximo link de despesa  ###")))
   
 }
 
@@ -1170,7 +1170,7 @@ if (scraping_html$result$status_code == 404) {
 
 
    tb_request <- tibble::tibble(
-                                log_erro = scraping_html$result$status_code,
+                                log_erro = "erro - 404",
                                 time = log_request,
                                 foreign_key = id,
                                 nm_entidade = nm_entidade,
@@ -1184,9 +1184,9 @@ if (scraping_html$result$status_code == 404) {
    DBI::dbDisconnect(conect_bd)
 
    # Parar a iteração e pular para a próxima requisição.
-   return(print(paste("### Erro 404 de Requisição", "-",
+   return(print(paste("### Erro 404 de Requisição para:",
                        nm_arq_html_pag, "- doc:", documento,
-                      ". Pulando para o próximo link de desepesa ###")))
+                      "- Pulando para o próximo link de desepesa ###")))
  
         
 }
@@ -1271,8 +1271,8 @@ if (teste_html_despesas[8] == teste_1) {
     
     DBI::dbDisconnect(conect_bd)
     
-    print(paste("Scraping -", "Doc:",documento, "- Pág: ", pagina,
-                 "- Ano: ", ano, "- Valor:", valor_documento, "-", nm_entidade))
+    print(paste("Scraping -", "Ano:", ano, "- Pág:", pagina, "- Doc:", documento, 
+                  "- Valor:", valor_documento, "-", nm_entidade))
 
 }
 
@@ -1543,7 +1543,7 @@ print("Os dados foram colocados no padrão Tidy Data Brasil (R$) e salvos em CSV
 - Área de Execução para teste do código
 
 
-```{r executar, eval=FALSE, message=FALSE, include=FALSE}
+```{r executar, eval=FALSE, message=FALSE, warning=FALSE, include=FALSE, paged.print=FALSE}
 
 
 # Variável que define a partir de que ano os dados serão raspados.
@@ -1628,32 +1628,36 @@ executar_tidy_data()
 #    pelos valores que estão em "fonte_de_recurso_tcm_2" e 'fonte_de_recurso_gestor_2'
 #!!! Implementar uma rotina para evitar timeout nos Webs Scrapings que estão
 #    contidos nas funções 'criar_tb_dmunicipios_entidades' e 'criar_tb_dmunicipios'
+#!!! Implementar rotina para tratar erro de falta de conexão com a internet
 #!!! Procurar uma solução no pacote dplyr ou tibble para o 'armengue' feito na função 'criar_tb_entidades_alvos_paginas'
+#    com a função merge.data.frame e verificar se há um método de filtro no dplyr::filter, para que não seja necessário
+#    criar a coluna 'filtro'
 
 
 # IMPLEMENTAÇÕES
 # NO CÓDIGO
 #!!! Documentar todo o código;
-#!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr`;
+#!!! Definir a melhor forma de encademaneto na execução das funções primárias para
+#    iniciar e continuar o Web Scraping. Além disso, estabelecer rotinas de check no momento de 
+#    fazer o input do anos_alvos e cod_municipio
+#!!! Finalizar o Código para que se torne automatizado com o CronR/CronTab
+#    http://leg.ufpr.br/~walmes/ensino/web-scraping/li%C3%A7%C3%B5es/13-crontab/
+#!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr` ou com a função abjutils::pvec() ;
 #!!! Atribuir cor aos prints;
 #!!! Desenvolver o Packrat do Web Scraping;
 #!!! Implementar uma Função de backup do BD e exportação de CSV
 #    em uma pasta do OneDrive;
 #!!! Implementar um API com o pacote 'Plumber';
-#!!! Finalizar o Código para que se torne automatizado com o CronR/CronTab
-#    http://leg.ufpr.br/~walmes/ensino/web-scraping/li%C3%A7%C3%B5es/13-crontab/
-#!!! Definir a melhor forma de encademaneto na execução das funções primárias para
-#    iniciar e continuar o Web Scraping. Além disso, estabelecer rotinas de check no momento de 
-#    fazer o input do anos_alvos e cod_municipio
 #!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba. Incluir uma tabela com o código e nome
 #    dos municípios e entidades municipais
 #!!! Gerar 'alertas' sobre os pagamentos para publicar no Facebook, Telegram ou Facebook
-#    Ex: Despesas de festas em perídos não festivos;
-#!!! Adequar o código para ceitar conexão com o MySQL, PostgreSQL e MongoDB
+#    Ex: Despesas de festas em perídos não festivos; Ou emitir relatório resumido na forma de imagem
+#    para ser enviado via Telegram, após obter os dados completos do mês;
+#!!! Adequar o código para ceitar conexão com o MySQL, PostgreSQL e MongoDB;
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 # NA INFRAESTRUTURA
 #!!! Implantar o Docker do RStudio no Digital Ocean, definindo o Volume para armazenar o SQLite;
-#!!! Implantar o Docker do Rstudio com o Packrat do Web Scraping;
+#!!! Implantar o Docker do RStudio com o Packrat do Web Scraping;
 
 
 # FALTA TESTAR
