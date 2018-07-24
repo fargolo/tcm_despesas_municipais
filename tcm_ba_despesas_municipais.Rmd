@@ -1123,7 +1123,7 @@ if (length(scraping_html$result) == 0) {
      tb_request <- tibble::tibble(
                                   log_erro = "timeout",
                                   time = log_request,
-                                  id = id,
+                                  foreign_key = id,
                                   nm_entidade = nm_entidade,
                                   pagina = pagina,
                                   documento = documento,
@@ -1147,7 +1147,7 @@ if (length(scraping_html$result) == 0) {
     tb_request <- tibble::tibble(
                                 log_erro = "timeout",
                                 time = log_request,
-                                id = id,
+                                foreign_key = id,
                                 nm_entidade = nm_entidade,
                                 pagina = pagina,
                                 documento = documento,
@@ -1172,7 +1172,7 @@ if (scraping_html$result$status_code == 404) {
    tb_request <- tibble::tibble(
                                 log_erro = scraping_html$result$status_code,
                                 time = log_request,
-                                id = id,
+                                foreign_key = id,
                                 nm_entidade = nm_entidade,
                                 pagina = pagina,
                                 documento = documento,
