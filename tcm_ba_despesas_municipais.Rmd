@@ -367,7 +367,7 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
                                                     dispensa_inexigibilidade TEXT NOT NULL,
                                                     contrato TEXT NOT NULL,
                                                     declaracao TEXT NOT NULL,
-                                                    foreign_key TEXT NOT NULL,
+                                                    foreign_key INTEGER NOT NULL,
                                                     nm_arq_html_despesa TEXT NOT NULL,
                                                     hash_arq_html_despesa TEXT NOT NULL,
                                                     log_tratamento_arq_html_despesa TEXT NOT NULL,
@@ -380,61 +380,61 @@ if (DBI::dbExistsTable(conect_bd, "tabela_requisicoes") == FALSE) {
 if (DBI::dbExistsTable(conect_bd, "tabela_despesas_municipais_tidy_data") == FALSE) {
 
     DBI::dbExecute(conect_bd, "CREATE TABLE tabela_despesas_municipais_tidy_data (
-                                                  	id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                                  	fase	TEXT NOT NULL,
+                                                  	id INTEGER NOT NULL,
+                                                  	fase TEXT NOT NULL,
                                                   	data_do_pagamento	TEXT NOT NULL,
                                                   	valor_do_pagamento	REAL NOT NULL,
                                                   	documento	TEXT NOT NULL,
                                                   	empenho	TEXT NOT NULL,
                                                   	data_empenho	TEXT NOT NULL,
                                                   	tipo_de_empenho	TEXT NOT NULL,
-                                                  	cod_favorecido	TEXT NOT NULL,
+                                                  	cod_favorecido TEXT NOT NULL,
                                                   	nm_favorecido	TEXT NOT NULL,
                                                   	valor_do_empenho	REAL NOT NULL,
                                                   	valor_das_retencoes	REAL NOT NULL,
-                                                  	restos_a_pagar	TEXT NOT NULL,
-                                                  	conta_bancaria	TEXT NOT NULL,
+                                                  	restos_a_pagar TEXT NOT NULL,
+                                                  	conta_bancaria TEXT NOT NULL,
                                                   	cod_fonte_de_recurso_tcm	TEXT NOT NULL,
                                                   	nm_fonte_de_recurso_tcm	TEXT NOT NULL,
                                                   	cod_fonte_de_recurso_gestor	TEXT NOT NULL,
-                                                  	nm_fonte_de_recurso_gestor	TEXT NOT NULL,
+                                                  	nm_fonte_de_recurso_gestor TEXT NOT NULL,
                                                   	tipo_de_documento	TEXT NOT NULL,
                                                   	cod_municipio	TEXT NOT NULL,
                                                   	municipio	TEXT NOT NULL,
-                                                  	cod_entidade	TEXT NOT NULL,
+                                                  	cod_entidade TEXT NOT NULL,
                                                   	nm_entidade	TEXT NOT NULL,
                                                   	poder	TEXT NOT NULL,
                                                   	cod_orgao	TEXT NOT NULL,
-                                                  	nm_orgao	TEXT NOT NULL,
+                                                  	nm_orgao TEXT NOT NULL,
                                                   	cod_unidade_orcamentaria	TEXT NOT NULL,
                                                   	nm_unidade_orcamentaria	TEXT NOT NULL,
-                                                  	cod_funcao	TEXT NOT NULL,
+                                                  	cod_funcao TEXT NOT NULL,
                                                   	nm_funcao	TEXT NOT NULL,
-                                                  	cod_subfuncao	TEXT NOT NULL,
-                                                  	nm_subfuncao	TEXT NOT NULL,
-                                                  	cod_programa	TEXT NOT NULL,
+                                                  	cod_subfuncao TEXT NOT NULL,
+                                                  	nm_subfuncao TEXT NOT NULL,
+                                                  	cod_programa TEXT NOT NULL,
                                                   	nm_programa	TEXT NOT NULL,
-                                                  	cod_tipo_acao	TEXT NOT NULL,
-                                                  	nm_tipo_acao	TEXT NOT NULL,
-                                                  	cod_acao	TEXT NOT NULL,
+                                                  	cod_tipo_acao TEXT NOT NULL,
+                                                  	nm_tipo_acao TEXT NOT NULL,
+                                                  	cod_acao TEXT NOT NULL,
                                                   	nm_acao	TEXT NOT NULL,
-                                                  	cod_natureza_da_despesa_tcm	TEXT NOT NULL,
-                                                  	nm_natureza_da_despesa_tcm	TEXT NOT NULL,
-                                                  	cod_natureza_da_despesa_gestor	TEXT NOT NULL,
+                                                  	cod_natureza_da_despesa_tcm TEXT NOT NULL,
+                                                  	nm_natureza_da_despesa_tcm TEXT NOT NULL,
+                                                  	cod_natureza_da_despesa_gestor TEXT NOT NULL,
                                                   	nm_natureza_da_despesa_gestor	TEXT NOT NULL,
                                                   	cod_fonte_de_recurso_tcm_2	TEXT NOT NULL,
                                                   	nm_fonte_de_recurso_tcm_2	TEXT NOT NULL,
-                                                  	cod_fonte_de_recurso_gestor_2	TEXT NOT NULL,
-                                                  	nm_fonte_de_recurso_gestor_2	TEXT NOT NULL,
+                                                  	cod_fonte_de_recurso_gestor_2 TEXT NOT NULL,
+                                                  	nm_fonte_de_recurso_gestor_2 TEXT NOT NULL,
                                                   	licitacao	TEXT NOT NULL,
-                                                  	Dispensa_Inexigibilidade	TEXT NOT NULL,
-                                                  	contrato	TEXT NOT NULL,
-                                                  	declaracao	TEXT NOT NULL,
-                                                  	foreign_key	TEXT NOT NULL,
+                                                  	Dispensa_Inexigibilidade TEXT NOT NULL,
+                                                  	contrato TEXT NOT NULL,
+                                                  	declaracao TEXT NOT NULL,
+                                                  	foreign_key	INTEGER NOT NULL,
                                                   	nm_arq_html_despesa	TEXT NOT NULL,
                                                   	hash_arq_html_despesa	TEXT NOT NULL,
                                                   	log_tratamento_arq_html_despesa	TEXT NOT NULL,
-                                                  	link	TEXT NOT NULL
+                                                  	link TEXT NOT NULL
                                                     );"
                                                     )
   
@@ -1119,7 +1119,7 @@ scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
 if (length(scraping_html$result) == 0) {
   
     print(paste("### Timeout: da Primeira tentativa. Mais uma tentativa será realizada para:",
-                nm_arq_html_pag, "- doc:", documento, " ###"))
+                nm_arq_html_pag, "- doc:", documento, "###"))
   
      tb_request <- tibble::tibble(
                                   log_erro = "timeout - primeira tentativa",
@@ -1134,59 +1134,62 @@ if (length(scraping_html$result) == 0) {
    
      DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
      
-     Sys.sleep(20)
-        
-}
-
-
-# Segunda tentativa. Se houver timeout novamente, pular para a próxima requisição.
-scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
-  
-if (length(scraping_html$result) == 0) {
-  
-
-    tb_request <- tibble::tibble(
-                                log_erro = "timeout - segunda tentativa",
-                                time = log_request,
-                                foreign_key = id,
-                                nm_entidade = nm_entidade,
-                                pagina = pagina,
-                                documento = documento,
-                                link = link_despesa
-                                )
-
-     DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
-
-     DBI::dbDisconnect(conect_bd)
+     Sys.sleep(15)
      
-     # Parar a iteração e pular para a próxima requisição
-     return(print(paste("### Timeout: da Segunda tentativa para:", nm_arq_html_pag,
-                        "- doc:", documento, "- Pulando para o próximo link de despesa  ###")))
+     print(paste("#### Segunda tentativa para:", nm_arq_html_pag,
+                 "- doc:", documento, "####"))
+        
+     # Segunda tentativa. Se houver timeout novamente, pular para a próxima requisição.
+     scraping_html <- scraping_html_purrr(link_despesa, timeout(35))
   
+          if (length(scraping_html$result) == 0) {
+      
+              tb_request <- tibble::tibble(
+                                          log_erro = "timeout - segunda tentativa",
+                                          time = log_request,
+                                          foreign_key = id,
+                                          nm_entidade = nm_entidade,
+                                          pagina = pagina,
+                                          documento = documento,
+                                          link = link_despesa
+                                          )
+          
+               DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+          
+               DBI::dbDisconnect(conect_bd)
+               
+               # Parar a iteração e pular para a próxima requisição
+               return(print(paste("### Timeout: da Segunda tentativa para:", nm_arq_html_pag,
+                                  "- doc:", documento, "- Pulando para o próximo link de despesa ###")))
+  
+
 }
+
+}
+
 
 # Verifica se há erro de querisição 404. Se sim, grava o erro numa tabela de log no BD.
 if (scraping_html$result$status_code == 404) {
 
-
-   tb_request <- tibble::tibble(
-                                log_erro = "erro - 404",
-                                time = log_request,
-                                foreign_key = id,
-                                nm_entidade = nm_entidade,
-                                pagina = pagina,
-                                documento = documento,
-                                link = link_despesa
-                                )
-
-   DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
-   
-   DBI::dbDisconnect(conect_bd)
-
-   # Parar a iteração e pular para a próxima requisição.
-   return(print(paste("### Erro 404 de Requisição para:",
-                       nm_arq_html_pag, "- doc:", documento,
-                      "- Pulando para o próximo link de desepesa ###")))
+  
+     tb_request <- tibble::tibble(
+                                  log_erro = "erro - 404",
+                                  time = log_request,
+                                  foreign_key = id,
+                                  nm_entidade = nm_entidade,
+                                  pagina = pagina,
+                                  documento = documento,
+                                  link = link_despesa
+                                  )
+  
+     DBI::dbWriteTable(conect_bd, "tabela_log_request", tb_request, append = TRUE)
+     
+     DBI::dbDisconnect(conect_bd)
+  
+     # Parar a iteração e pular para a próxima requisição.
+     return(print(paste("### Erro 404 de Requisição para:",
+                         nm_arq_html_pag, "- doc:", documento,
+                        "- Pulando para o próximo link de desepesa ###")))
  
         
 }
@@ -1222,7 +1225,8 @@ if (teste_html_despesas[8] == teste_1) {
    
    DBI::dbDisconnect(conect_bd)
 
-   return(print(paste("### O HTML", nm_arq_html_pag, "- doc:", documento, "não está com informações completas. Tentar mais tarde. ###")))
+   return(print(paste("### O HTML", nm_arq_html_pag, "- doc:",
+                      documento, "não está com informações completas. Tentar mais tarde. ###")))
    
      
 # Se tudo estiver OK com a requisição e com o arquivo HTML, então executa esse bloco de código.
@@ -1238,7 +1242,8 @@ if (teste_html_despesas[8] == teste_1) {
     
               sufixo <- format(Sys.time(), "%H_%M_%S")
               
-              nome_arquivo_html <- paste0(gsub("_.html", "", nome_arquivo_html), "-d_", sufixo, "_.html")
+              nome_arquivo_html <- paste0(gsub("_.html", "", nome_arquivo_html),
+                                          "-d_", sufixo, "_.html")
             
 }
               
@@ -1632,6 +1637,12 @@ executar_tidy_data()
 #!!! Procurar uma solução no pacote dplyr ou tibble para o 'armengue' feito na função 'criar_tb_entidades_alvos_paginas'
 #    com a função merge.data.frame e verificar se há um método de filtro no dplyr::filter, para que não seja necessário
 #    criar a coluna 'filtro'
+#!!! Colocar uma coluna na tabela_log para registrar os erros de requisição. Para isso, temos que analisar como
+#    é a resposta HTML do código do TCM
+#!!! Analisar a melhor prática de programação para conectar, escrever e desconectar no BD. Talvez uma solução seja
+#    colocar a função de conexão do banco de dados dentro da função de escrita, em vez de colocar a variável
+#    'conect_bd'
+
 
 
 # IMPLEMENTAÇÕES
@@ -1645,7 +1656,7 @@ executar_tidy_data()
 #!!! Paralelizar requisições e o tratamento de dados com o pacote `furrr` ou com a função abjutils::pvec() ;
 #!!! Atribuir cor aos prints;
 #!!! Desenvolver o Packrat do Web Scraping;
-#!!! Implementar uma Função de backup do BD e exportação de CSV
+#!!! Implementar uma Função de backup do BD e dos arquivos HTML raspados;
 #    em uma pasta do OneDrive;
 #!!! Implementar um API com o pacote 'Plumber';
 #!!! Desenvolver um Pacote R para o Web Scraping do TCM-Ba. Incluir uma tabela com o código e nome
@@ -1653,7 +1664,7 @@ executar_tidy_data()
 #!!! Gerar 'alertas' sobre os pagamentos para publicar no Facebook, Telegram ou Facebook
 #    Ex: Despesas de festas em perídos não festivos; Ou emitir relatório resumido na forma de imagem
 #    para ser enviado via Telegram, após obter os dados completos do mês;
-#!!! Adequar o código para ceitar conexão com o MySQL, PostgreSQL e MongoDB;
+#!!! Adequar o código para aceitar conexão com o MySQL, PostgreSQL e MongoDB;
 #- - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - 
 # NA INFRAESTRUTURA
 #!!! Implantar o Docker do RStudio no Digital Ocean, definindo o Volume para armazenar o SQLite;
